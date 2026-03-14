@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Evaluation, DimensionScore, VoiceAnalysis
+from .models import Evaluation, VoiceAnalysis
 
 
 @admin.register(Evaluation)
@@ -11,18 +11,10 @@ class EvaluationAdmin(admin.ModelAdmin):
     readonly_fields = ['created_at', 'updated_at']
 
 
-@admin.register(DimensionScore)
-class DimensionScoreAdmin(admin.ModelAdmin):
-    list_display = ['evaluation', 'dimension', 'score', 'max_score']
-    list_filter = ['dimension']
-    search_fields = ['evaluation__interview__user__username', 'dimension__name']
-    ordering = ['evaluation', 'dimension']
-
-
 @admin.register(VoiceAnalysis)
 class VoiceAnalysisAdmin(admin.ModelAdmin):
-    list_display = ['message', 'duration_seconds', 'speech_rate', 'clarity_score', 'confidence_score', 'emotion']
+    list_display = ['round', 'duration_seconds', 'speech_rate', 'clarity_score', 'confidence_score', 'emotion']
     list_filter = ['emotion']
-    search_fields = ['message__content']
+    search_fields = ['round__interview__user__username', 'transcript']
     ordering = ['-created_at']
     readonly_fields = ['created_at']

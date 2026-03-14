@@ -28,29 +28,8 @@ class Evaluation(models.Model):
         return f'{self.interview} - {self.overall_score}'
 
 
-class DimensionScore(models.Model):
-    evaluation = models.ForeignKey(Evaluation, on_delete=models.CASCADE, related_name='dimension_scores', verbose_name='评估')
-    dimension = models.ForeignKey('positions.PositionDimension', on_delete=models.CASCADE, verbose_name='维度')
-    
-    score = models.FloatField(verbose_name='得分')
-    max_score = models.FloatField(default=100, verbose_name='满分')
-    comment = models.TextField(blank=True, verbose_name='评语')
-    
-    evidence = models.JSONField(default=list, verbose_name='证据')
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
-
-    class Meta:
-        db_table = 'dimension_scores'
-        verbose_name = '维度评分'
-        verbose_name_plural = '维度评分'
-        unique_together = ['evaluation', 'dimension']
-
-    def __str__(self):
-        return f'{self.dimension.name}: {self.score}'
-
-
 class VoiceAnalysis(models.Model):
-    message = models.OneToOneField('interviews.InterviewMessage', on_delete=models.CASCADE, related_name='voice_analysis', verbose_name='消息')
+    round = models.ForeignKey('interviews.InterviewRound', on_delete=models.CASCADE, related_name='voice_analyses', null=True, blank=True, verbose_name='轮次')
     
     duration_seconds = models.FloatField(verbose_name='时长(秒)')
     speech_rate = models.FloatField(verbose_name='语速(字/分钟)')
@@ -69,4 +48,4 @@ class VoiceAnalysis(models.Model):
         verbose_name_plural = '语音分析'
 
     def __str__(self):
-        return f'{self.message} - {self.speech_rate}字/分钟'
+        return f'{self.round or "未关联轮次"} - {self.speech_rate}字/分钟'

@@ -14,7 +14,7 @@
 | `email` | Email | CharField(254) | - | 邮箱 |
 | `phone` | Phone | CharField(20) | 可空 | 手机号 |
 | `avatar` | Avatar URL | CharField(500) | 可空 | 头像URL |
-| `target_position` | Target Position | ForeignKey | 可空 | 目标岗位 |
+| `target_positions` | Target Positions | ManyToManyField | 可空 | 目标岗位（多选） |
 | `interview_count` | Interview Count | IntegerField | 默认0 | 面试次数 |
 | `is_active` | Is Active | BooleanField | 默认True | 是否激活 |
 | `is_staff` | Is Staff | BooleanField | 默认False | 是否员工 |
@@ -57,17 +57,6 @@
 | `created_at` | Created At | DateTimeField | - | 创建时间 |
 | `updated_at` | Updated At | DateTimeField | - | 更新时间 |
 
-### 2.2 position_dimensions 表 - 岗位评估维度表
-
-| 字段名 | 英文名称 | 数据类型 | 约束 | 描述 |
-|--------|---------|---------|------|------|
-| `id` | ID | BigAutoField | 主键 | 维度ID |
-| `position` | Position | ForeignKey | 外键 | 关联岗位 |
-| `code` | Code | CharField(50) | - | 维度代码 |
-| `name` | Name | CharField(100) | - | 维度名称 |
-| `weight` | Weight | FloatField | 默认1.0 | 权重 |
-| `description` | Description | TextField | 可空 | 维度描述 |
-| `created_at` | Created At | DateTimeField | - | 创建时间 |
 
 ## 3. 题库相关表
 
@@ -126,6 +115,7 @@
 | `start_time` | Start Time | DateTimeField | 可空 | 开始时间 |
 | `end_time` | End Time | DateTimeField | 可空 | 结束时间 |
 | `duration_seconds` | Duration Seconds | IntegerField | 默认0 | 时长(秒) |
+| `total_rounds` | Total Rounds | IntegerField | 默认0 | 总轮次 |
 | `total_questions` | Total Questions | IntegerField | 默认0 | 总题数 |
 | `answered_questions` | Answered Questions | IntegerField | 默认0 | 已答题数 |
 | `notes` | Notes | TextField | 可空 | 备注 |
@@ -140,24 +130,30 @@
 | `interview` | Interview | ForeignKey | 外键 | 关联面试 |
 | `round_number` | Round Number | IntegerField | - | 轮次 |
 | `category` | Category | ForeignKey | 可空 | 题目分类 |
+| `question` | Question | ForeignKey | 可空 | 关联题目（问题ID） |
+| `question_content` | Question Content Snapshot | TextField | 可空 | 问题内容快照 |
+| `user_answer` | User Answer | TextField | 可空 | 用户回答 |
 | `start_time` | Start Time | DateTimeField | - | 开始时间 |
 | `end_time` | End Time | DateTimeField | 可空 | 结束时间 |
 | `created_at` | Created At | DateTimeField | - | 创建时间 |
 
-### 4.3 interview_messages 表 - 面试消息表
+### 4.3 interview_round_analyses 表 - 轮次分析结果表
 
 | 字段名 | 英文名称 | 数据类型 | 约束 | 描述 |
 |--------|---------|---------|------|------|
-| `id` | ID | BigAutoField | 主键 | 消息ID |
-| `interview` | Interview | ForeignKey | 外键 | 关联面试 |
-| `round` | Round | ForeignKey | 外键 | 关联轮次 |
-| `role` | Role | CharField(20) | - | 角色 |
-| `message_type` | Message Type | CharField(20) | - | 消息类型 |
-| `content` | Content | TextField | - | 内容 |
-| `audio_file` | Audio File URL | CharField(500) | 可空 | 语音文件URL |
-| `question` | Question | ForeignKey | 可空 | 关联题目 |
-| `sequence` | Sequence | IntegerField | - | 序号 |
+| `id` | ID | BigAutoField | 主键 | 轮次分析ID |
+| `round` | Round | OneToOneField | 外键 | 关联面试轮次 |
+| `overall_score` | Overall Score | FloatField | - | 综合得分 |
+| `overall_comment` | Overall Comment | TextField | - | 综合评价 |
+| `technical_score` | Technical Score | FloatField | - | 技术得分 |
+| `communication_score` | Communication Score | FloatField | - | 沟通得分 |
+| `logic_score` | Logic Score | FloatField | - | 逻辑得分 |
+| `adaptability_score` | Adaptability Score | FloatField | - | 应变得分 |
+| `highlights` | Highlights | JSONField | 默认[] | 亮点 |
+| `weaknesses` | Weaknesses | JSONField | 默认[] | 不足 |
+| `suggestions` | Suggestions | JSONField | 默认[] | 建议 |
 | `created_at` | Created At | DateTimeField | - | 创建时间 |
+| `updated_at` | Updated At | DateTimeField | - | 更新时间 |
 
 ## 5. 评估相关表
 
@@ -179,25 +175,12 @@
 | `created_at` | Created At | DateTimeField | - | 创建时间 |
 | `updated_at` | Updated At | DateTimeField | - | 更新时间 |
 
-### 5.2 dimension_scores 表 - 维度评分表
-
-| 字段名 | 英文名称 | 数据类型 | 约束 | 描述 |
-|--------|---------|---------|------|------|
-| `id` | ID | BigAutoField | 主键 | 评分ID |
-| `evaluation` | Evaluation | ForeignKey | 外键 | 关联评估 |
-| `dimension` | Dimension | ForeignKey | 外键 | 关联维度 |
-| `score` | Score | FloatField | - | 得分 |
-| `max_score` | Max Score | FloatField | 默认100 | 满分 |
-| `comment` | Comment | TextField | 可空 | 评语 |
-| `evidence` | Evidence | JSONField | 默认[] | 证据 |
-| `created_at` | Created At | DateTimeField | - | 创建时间 |
-
-### 5.3 voice_analyses 表 - 语音分析表
+### 5.2 voice_analyses 表 - 语音分析表
 
 | 字段名 | 英文名称 | 数据类型 | 约束 | 描述 |
 |--------|---------|---------|------|------|
 | `id` | ID | BigAutoField | 主键 | 分析ID |
-| `message` | Message | OneToOneField | 外键 | 关联消息 |
+| `round` | Round | ForeignKey | 可空 | 关联面试轮次 |
 | `duration_seconds` | Duration Seconds | FloatField | - | 时长(秒) |
 | `speech_rate` | Speech Rate | FloatField | - | 语速(字/分钟) |
 | `clarity_score` | Clarity Score | FloatField | - | 清晰度得分 |
@@ -283,7 +266,7 @@
 | `description` | Description | TextField | - | 描述 |
 | `priority` | Priority | IntegerField | 默认1 | 优先级 |
 | `is_completed` | Is Completed | BooleanField | 默认False | 是否完成 |
-| `related_dimension` | Related Dimension | ForeignKey | 可空 | 关联维度 |
+| `related_dimension` | Related Dimension | CharField(100) | 可空 | 关联维度（文本） |
 | `related_knowledge_point` | Related Knowledge Point | ForeignKey | 可空 | 关联知识点 |
 | `created_at` | Created At | DateTimeField | - | 创建时间 |
 | `updated_at` | Updated At | DateTimeField | - | 更新时间 |
@@ -305,6 +288,14 @@
 | `id` | ID | BigAutoField | 主键 | 关联ID |
 | `learningresource_id` | Learning Resource ID | BigIntegerField | 外键 | 学习资源ID |
 | `knowledgepoint_id` | Knowledge Point ID | BigIntegerField | 外键 | 知识点ID |
+
+### 9.3 users_target_positions 表 - 用户与目标岗位关联表
+
+| 字段名 | 英文名称 | 数据类型 | 约束 | 描述 |
+|--------|---------|---------|------|------|
+| `id` | ID | BigAutoField | 主键 | 关联ID |
+| `user_id` | User ID | BigIntegerField | 外键 | 用户ID |
+| `jobposition_id` | Job Position ID | BigIntegerField | 外键 | 岗位ID |
 
 ## 10. 系统表
 
@@ -340,7 +331,7 @@
 | `group_id` | Group ID | ForeignKey | 外键 | 组ID |
 | `permission_id` | Permission ID | ForeignKey | 外键 | 权限ID |
 
-### 10.5 auth_user_groups 表 - 用户与组关联表
+### 10.5 users_groups 表 - 用户与组关联表
 
 | 字段名 | 英文名称 | 数据类型 | 约束 | 描述 |
 |--------|---------|---------|------|------|
@@ -348,7 +339,7 @@
 | `user_id` | User ID | ForeignKey | 外键 | 用户ID |
 | `group_id` | Group ID | ForeignKey | 外键 | 组ID |
 
-### 10.6 auth_user_user_permissions 表 - 用户与权限关联表
+### 10.6 users_user_permissions 表 - 用户与权限关联表
 
 | 字段名 | 英文名称 | 数据类型 | 约束 | 描述 |
 |--------|---------|---------|------|------|
@@ -382,8 +373,8 @@
 - **数据库类型**: SQLite
 - **数据库文件**: `db.sqlite3`
 - **第一次创建时间**: 2026/3/14 12:00
-- **模型数量**: 18个自定义模型 + 8个系统模型
-- **总表数量**: 26个表
+- **模型数量**: 16个自定义模型
+- **总表数量**: 28个表（含 `django_migrations`）
 
 ---
 
@@ -402,12 +393,11 @@
 ```
 users (用户)
 ├── OneToOne → user_progress (用户进度)
-├── ForeignKey → job_positions (目标岗位)
+├── ManyToMany → job_positions (目标岗位)
 ├── OneToMany → interviews (面试记录)
 └── OneToMany → learning_paths (学习路径)
 
 job_positions (岗位)
-├── OneToMany → position_dimensions (评估维度)
 ├── OneToMany → knowledge_points (知识点)
 ├── OneToMany → questions (面试题)
 ├── OneToMany → learning_resources (学习资源)
@@ -424,8 +414,7 @@ knowledge_points (知识点)
 questions (面试题)
 ├── ForeignKey → job_positions (岗位)
 ├── ForeignKey → question_categories (分类)
-├── ManyToMany → knowledge_points (知识点)
-└── OneToMany → interview_messages (关联消息)
+└── ManyToMany → knowledge_points (知识点)
 
 interviews (面试记录)
 ├── ForeignKey → users (用户)
@@ -433,31 +422,24 @@ interviews (面试记录)
 ├── OneToOne → evaluations (评估结果)
 ├── OneToOne → reports (评估报告)
 ├── OneToMany → interview_rounds (面试轮次)
-├── OneToMany → interview_messages (对话消息)
 └── OneToMany → recommendations (推荐记录)
 
 interview_rounds (面试轮次)
 ├── ForeignKey → interviews (面试记录)
 ├── ForeignKey → question_categories (题目分类)
-└── OneToMany → interview_messages (对话消息)
-
-interview_messages (对话消息)
-├── ForeignKey → interviews (面试记录)
-├── ForeignKey → interview_rounds (轮次)
 ├── ForeignKey → questions (关联题目)
-└── OneToOne → voice_analyses (语音分析)
+├── OneToOne → interview_round_analyses (轮次分析结果)
+└── OneToMany → voice_analyses (语音分析)
+
+interview_round_analyses (轮次分析结果)
+└── OneToOne → interview_rounds (面试轮次)
 
 evaluations (评估记录)
 ├── OneToOne → interviews (面试记录)
-├── OneToOne → reports (评估报告)
-└── OneToMany → dimension_scores (维度评分)
-
-dimension_scores (维度评分)
-├── ForeignKey → evaluations (评估记录)
-└── ForeignKey → position_dimensions (评估维度)
+└── OneToOne → reports (评估报告)
 
 voice_analyses (语音分析)
-└── OneToOne → interview_messages (对话消息)
+└── ForeignKey → interview_rounds (面试轮次)
 
 reports (评估报告)
 ├── OneToOne → interviews (面试记录)
@@ -479,7 +461,7 @@ learning_path_items (学习路径项)
 recommendations (推荐记录)
 ├── ForeignKey → users (用户)
 ├── ForeignKey → interviews (面试记录)
-├── ForeignKey → position_dimensions (关联维度)
+├── CharField → related_dimension (关联维度)
 └── ForeignKey → knowledge_points (关联知识点)
 ```
 
@@ -490,9 +472,9 @@ recommendations (推荐记录)
 | 表名 | 英文名称 | 删除影响 | 风险等级 |
 |-----|---------|---------|---------|
 | `users` | Users | 删除用户会级联删除：user_progress、所有interviews、所有learning_paths、所有recommendations | ⚠️ **高风险** |
-| `job_positions` | Job Positions | 删除岗位会级联删除：position_dimensions、knowledge_points、questions、learning_resources、interviews | ⚠️ **高风险** |
-| `interviews` | Interviews | 删除面试会级联删除：interview_rounds、interview_messages、evaluations、reports、recommendations | ⚠️ **高风险** |
-| `evaluations` | Evaluations | 删除评估会级联删除：dimension_scores、reports | ⚠️ **中风险** |
+| `job_positions` | Job Positions | 删除岗位会级联删除：knowledge_points、questions、learning_resources、interviews | ⚠️ **高风险** |
+| `interviews` | Interviews | 删除面试会级联删除：interview_rounds、interview_round_analyses、voice_analyses、evaluations、reports、recommendations | ⚠️ **高风险** |
+| `evaluations` | Evaluations | 删除评估会影响reports | ⚠️ **中风险** |
 | `question_categories` | Question Categories | 删除分类会影响interview_rounds和questions | ⚠️ **中风险** |
 | `knowledge_points` | Knowledge Points | 删除知识点会清理questions和learning_resources的关联 | ⚠️ **中风险** |
 
@@ -500,8 +482,8 @@ recommendations (推荐记录)
 
 | 表名 | 英文名称 | 删除影响 | 风险等级 |
 |-----|---------|---------|---------|
-| `questions` | Questions | 删除题目会影响interview_messages和knowledge_points关联 | ⚠️ **中风险** |
-| `interview_rounds` | Interview Rounds | 删除轮次会影响interview_messages | ⚠️ **中风险** |
+| `questions` | Questions | 删除题目会影响interview_rounds和knowledge_points关联（关联字段会置空） | ⚠️ **中风险** |
+| `interview_rounds` | Interview Rounds | 删除轮次会影响voice_analyses和interview_round_analyses | ⚠️ **中风险** |
 | `learning_paths` | Learning Paths | 删除路径会清理learning_path_items | ⚠️ **中风险** |
 | `learning_resources` | Learning Resources | 删除资源会影响learning_path_items和knowledge_points关联 | ⚠️ **中风险** |
 
@@ -509,10 +491,8 @@ recommendations (推荐记录)
 
 | 表名 | 英文名称 | 删除影响 | 风险等级 |
 |-----|---------|---------|---------|
-| `position_dimensions` | Position Dimensions | 删除维度会影响dimension_scores和recommendations | ⚠️ **低风险** |
-| `interview_messages` | Interview Messages | 删除消息会影响voice_analyses | ⚠️ **低风险** |
-| `dimension_scores` | Dimension Scores | 无级联影响 | ✅ **低风险** |
 | `voice_analyses` | Voice Analyses | 无级联影响 | ✅ **低风险** |
+| `interview_round_analyses` | Interview Round Analyses | 无级联影响 | ✅ **低风险** |
 | `reports` | Reports | 无级联影响 | ✅ **低风险** |
 | `learning_path_items` | Learning Path Items | 无级联影响 | ✅ **低风险** |
 | `recommendations` | Recommendations | 无级联影响 | ✅ **低风险** |

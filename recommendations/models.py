@@ -19,7 +19,7 @@ class Recommendation(models.Model):
     priority = models.IntegerField(default=1, verbose_name='优先级')
     is_completed = models.BooleanField(default=False, verbose_name='是否完成')
     
-    related_dimension = models.ForeignKey('positions.PositionDimension', on_delete=models.SET_NULL, null=True, blank=True, verbose_name='关联维度')
+    related_dimension = models.CharField(max_length=100, blank=True, null=True, verbose_name='关联维度')
     related_knowledge_point = models.ForeignKey('questions.KnowledgePoint', on_delete=models.SET_NULL, null=True, blank=True, verbose_name='关联知识点')
     
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')

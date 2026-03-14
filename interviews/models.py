@@ -25,6 +25,7 @@ class Interview(models.Model):
     end_time = models.DateTimeField(null=True, blank=True, verbose_name='结束时间')
     duration_seconds = models.IntegerField(default=0, verbose_name='时长(秒)')
     
+    total_rounds = models.IntegerField(default=0, verbose_name='总轮次')
     total_questions = models.IntegerField(default=0, verbose_name='总题数')
     answered_questions = models.IntegerField(default=0, verbose_name='已答题数')
     
@@ -46,6 +47,9 @@ class InterviewRound(models.Model):
     interview = models.ForeignKey(Interview, on_delete=models.CASCADE, related_name='rounds', verbose_name='面试')
     round_number = models.IntegerField(verbose_name='轮次')
     category = models.ForeignKey('questions.QuestionCategory', on_delete=models.SET_NULL, null=True, blank=True, verbose_name='题目分类')
+    question = models.ForeignKey('questions.Question', on_delete=models.SET_NULL, null=True, blank=True, related_name='interview_rounds', verbose_name='题目')
+    question_content = models.TextField(blank=True, verbose_name='问题内容快照')
+    user_answer = models.TextField(blank=True, verbose_name='用户回答')
     
     start_time = models.DateTimeField(auto_now_add=True, verbose_name='开始时间')
     end_time = models.DateTimeField(null=True, blank=True, verbose_name='结束时间')
@@ -62,40 +66,28 @@ class InterviewRound(models.Model):
         return f'{self.interview} - 第{self.round_number}轮'
 
 
-class InterviewMessage(models.Model):
-    ROLE_CHOICES = [
-        ('interviewer', '面试官'),
-        ('candidate', '候选人'),
-        ('system', '系统'),
-    ]
+class InterviewRoundAnalysis(models.Model):
+    round = models.OneToOneField(InterviewRound, on_delete=models.CASCADE, related_name='analysis', verbose_name='面试轮次')
 
-    MESSAGE_TYPE_CHOICES = [
-        ('question', '问题'),
-        ('answer', '回答'),
-        ('follow_up', '追问'),
-        ('feedback', '反馈'),
-        ('system', '系统消息'),
-    ]
+    overall_score = models.FloatField(verbose_name='综合得分')
+    overall_comment = models.TextField(verbose_name='综合评价')
 
-    interview = models.ForeignKey(Interview, on_delete=models.CASCADE, related_name='messages', verbose_name='面试')
-    round = models.ForeignKey(InterviewRound, on_delete=models.CASCADE, related_name='messages', verbose_name='轮次')
-    
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES, verbose_name='角色')
-    message_type = models.CharField(max_length=20, choices=MESSAGE_TYPE_CHOICES, verbose_name='消息类型')
-    
-    content = models.TextField(verbose_name='内容')
-    audio_file = models.CharField(max_length=500, blank=True, null=True, verbose_name='语音文件URL')
-    
-    question = models.ForeignKey('questions.Question', on_delete=models.SET_NULL, null=True, blank=True, verbose_name='关联题目')
-    
-    sequence = models.IntegerField(verbose_name='序号')
+    technical_score = models.FloatField(verbose_name='技术得分')
+    communication_score = models.FloatField(verbose_name='沟通得分')
+    logic_score = models.FloatField(verbose_name='逻辑得分')
+    adaptability_score = models.FloatField(verbose_name='应变得分')
+
+    highlights = models.JSONField(default=list, verbose_name='亮点')
+    weaknesses = models.JSONField(default=list, verbose_name='不足')
+    suggestions = models.JSONField(default=list, verbose_name='建议')
+
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
 
     class Meta:
-        db_table = 'interview_messages'
-        verbose_name = '面试消息'
-        verbose_name_plural = '面试消息'
-        ordering = ['sequence']
+        db_table = 'interview_round_analyses'
+        verbose_name = '轮次分析结果'
+        verbose_name_plural = '轮次分析结果'
 
     def __str__(self):
-        return f'{self.role}: {self.content[:50]}'
+        return f'{self.round} - {self.overall_score}'
