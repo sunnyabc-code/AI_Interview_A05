@@ -9,7 +9,7 @@
 
 ### 2. 安装依赖（如需要）
 ```bash
-pip install djangorestframework django-cors-headers drf-yasg
+pip install djangorestframework django-cors-headers drf-yasg djangorestframework-simplejwt pymysql cryptography
 ```
 
 ### 3. 创建超级用户
@@ -135,10 +135,10 @@ python manage.py sqlmigrate app_name migration_name
 
 ## 问题排查
 
-### 数据库锁定
+### MySQL连接失败
 ```bash
-# 删除数据库文件重新迁移
-del db.sqlite3
+# 检查MySQL服务状态并确认账号密码
+# 再执行迁移验证连接
 python manage.py migrate
 ```
 

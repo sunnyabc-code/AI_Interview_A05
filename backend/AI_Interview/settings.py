@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -85,8 +86,12 @@ WSGI_APPLICATION = 'AI_Interview.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'ai_interview_database',
+        'USER': 'user',
+        'PASSWORD': 'password123',
+        'HOST': '121.40.66.75',
+        'PORT': '3306',
     }
 }
 

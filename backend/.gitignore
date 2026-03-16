@@ -32,6 +32,7 @@ media/
 staticfiles/
 
 # Database files (local)
+db.sqlite3
 *.sqlite3
 *.sqlite3-journal
 *.sqlite3-shm
@@ -95,3 +96,4 @@ $RECYCLE.BIN/
 *.bak
 *.swp
 *.swo
+
