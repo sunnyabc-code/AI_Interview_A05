@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'corsheaders',
     'rest_framework',
     'drf_yasg',
     'users',
@@ -48,11 +49,13 @@ INSTALLED_APPS = [
     'reports',
     'recommendations',
     'learning',
+    'interview_md',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -87,7 +90,7 @@ WSGI_APPLICATION = 'AI_Interview.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'ai_interview_database',
+        'NAME': 'interview_system',
         'USER': 'user',
         'PASSWORD': 'password123',
         'HOST': '121.40.66.75',
@@ -177,3 +180,12 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.AllowAny',
     ],
 }
+
+# 前端开发跨域（Vue Vite）
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
+
+# LLM：OpenAI 兼容接口；后续接入阿里云百炼时，将 LLM_BASE_URL 换为百炼 compatible-mode 地址即可
+LLM_BASE_URL = os.environ.get('LLM_BASE_URL', '').strip() or 'https://dashscope.aliyuncs.com/compatible-mode/v1'
+LLM_API_KEY = os.environ.get('LLM_API_KEY', '').strip()
+LLM_MODEL = os.environ.get('LLM_MODEL', 'qwen-turbo')
