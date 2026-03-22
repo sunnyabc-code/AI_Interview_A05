@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Evaluation, VoiceAnalysis
+from .models import DifficultyConfig, Evaluation, VoiceAnalysis
 
 
 @admin.register(Evaluation)
@@ -18,3 +18,21 @@ class VoiceAnalysisAdmin(admin.ModelAdmin):
     search_fields = ['round__interview__user__username', 'transcript']
     ordering = ['-created_at']
     readonly_fields = ['created_at']
+
+
+@admin.register(DifficultyConfig)
+class DifficultyConfigAdmin(admin.ModelAdmin):
+    list_display = [
+        'id',
+        'difficulty_code',
+        'difficulty_name',
+        'answer_time_seconds',
+        'technical_chain_count',
+        'project_chain_count',
+        'scenario_chain_count',
+        'updated_at',
+    ]
+    list_filter = ['difficulty_code']
+    search_fields = ['difficulty_code', 'difficulty_name']
+    ordering = ['id']
+    readonly_fields = ['created_at', 'updated_at']

@@ -17,6 +17,7 @@ class Interview(models.Model):
 
     user = models.ForeignKey('users.User', on_delete=models.CASCADE, related_name='interviews', verbose_name='用户')
     position = models.ForeignKey('positions.JobPosition', on_delete=models.CASCADE, related_name='interviews', verbose_name='岗位')
+    difficulty_config = models.ForeignKey('evaluations.DifficultyConfig', on_delete=models.SET_NULL, related_name='interviews', null=True, blank=True, verbose_name='难度配置')
     
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name='状态')
     mode = models.CharField(max_length=20, choices=MODE_CHOICES, default='text', verbose_name='交互模式')
@@ -26,8 +27,9 @@ class Interview(models.Model):
     duration_seconds = models.IntegerField(default=0, verbose_name='时长(秒)')
     
     total_rounds = models.IntegerField(default=0, verbose_name='总轮次')
-    total_questions = models.IntegerField(default=0, verbose_name='总题数')
-    answered_questions = models.IntegerField(default=0, verbose_name='已答题数')
+    enable_technical_questions = models.BooleanField(default=True, verbose_name='是否选择技术知识题')
+    enable_project_questions = models.BooleanField(default=True, verbose_name='是否选择项目经历题')
+    enable_scenario_questions = models.BooleanField(default=True, verbose_name='是否选择场景题')
     
     notes = models.TextField(blank=True, verbose_name='备注')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')

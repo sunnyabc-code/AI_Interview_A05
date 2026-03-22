@@ -116,8 +116,10 @@
 | `end_time` | End Time | DateTimeField | 可空 | 结束时间 |
 | `duration_seconds` | Duration Seconds | IntegerField | 默认0 | 时长(秒) |
 | `total_rounds` | Total Rounds | IntegerField | 默认0 | 总轮次 |
-| `total_questions` | Total Questions | IntegerField | 默认0 | 总题数 |
-| `answered_questions` | Answered Questions | IntegerField | 默认0 | 已答题数 |
+| `difficulty_config` | Difficulty Config | ForeignKey | 可空 | 关联难度配置 |
+| `enable_technical_questions` | Enable Technical Questions | BooleanField | 默认True | 是否选择技术知识题 |
+| `enable_project_questions` | Enable Project Questions | BooleanField | 默认True | 是否选择项目经历题 |
+| `enable_scenario_questions` | Enable Scenario Questions | BooleanField | 默认True | 是否选择场景题 |
 | `notes` | Notes | TextField | 可空 | 备注 |
 | `created_at` | Created At | DateTimeField | - | 创建时间 |
 | `updated_at` | Updated At | DateTimeField | - | 更新时间 |
@@ -189,6 +191,23 @@
 | `transcript` | Transcript | TextField | 可空 | 转录文本 |
 | `analysis_details` | Analysis Details | JSONField | 默认{} | 分析详情 |
 | `created_at` | Created At | DateTimeField | - | 创建时间 |
+
+### 5.2.2 difficulty_config 表 - 难度配置表
+
+| 字段名 | 英文名称 | 数据类型 | 约束 | 描述 |
+|--------|---------|---------|------|------|
+| `id` | ID | BigAutoField | 主键 | 配置ID |
+| `difficulty_code` | Difficulty Code | CharField(16) | 唯一 | 难度编码（easy / medium / hard） |
+| `difficulty_name` | Difficulty Name | CharField(32) | - | 难度名称 |
+| `answer_time_seconds` | Answer Time Seconds | IntegerField | - | 单轮默认答题时长 |
+| `technical_chain_count` | Technical Chain Count | IntegerField | - | 技术知识链数量 |
+| `project_chain_count` | Project Chain Count | IntegerField | - | 项目深挖链数量 |
+| `scenario_chain_count` | Scenario Chain Count | IntegerField | - | 场景题链数量 |
+| `technical_max_followup_depth` | Technical Max Followup Depth | IntegerField | - | 技术链最大追问深度 |
+| `project_max_followup_depth` | Project Max Followup Depth | IntegerField | - | 项目链最大追问深度 |
+| `scenario_max_followup_depth` | Scenario Max Followup Depth | IntegerField | - | 场景链最大追问深度 |
+| `created_at` | Created At | DateTimeField | - | 创建时间 |
+| `updated_at` | Updated At | DateTimeField | - | 更新时间 |
 
 ## 6. 报告相关表
 
@@ -419,6 +438,7 @@ questions (面试题)
 interviews (面试记录)
 ├── ForeignKey → users (用户)
 ├── ForeignKey → job_positions (岗位)
+├── ForeignKey → difficulty_config (难度配置)
 ├── OneToOne → evaluations (评估结果)
 ├── OneToOne → reports (评估报告)
 ├── OneToMany → interview_rounds (面试轮次)

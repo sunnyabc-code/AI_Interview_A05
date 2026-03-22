@@ -136,6 +136,7 @@
 | GET | `/api/v1/interviews/` | 面试列表 | 认证 |
 | GET | `/api/v1/interviews/{id}/` | 面试详情 | 认证 |
 | PATCH | `/api/v1/interviews/{id}/` | 更新面试状态/总轮数等 | 认证 |
+| DELETE | `/api/v1/interviews/{id}/` | 删除面试记录 | 认证 |
 | POST | `/api/v1/interviews/{id}/start/` | 开始面试 | 认证 |
 | POST | `/api/v1/interviews/{id}/end/` | 结束面试 | 认证 |
 
@@ -193,6 +194,10 @@
 ```json
 {
   "position": 1,
+  "difficulty_config": 1,
+  "enable_technical_questions": true,
+  "enable_project_questions": true,
+  "enable_scenario_questions": true,
   "mode": "text",
   "total_rounds": 5,
   "notes": "本次重点考察项目经历"

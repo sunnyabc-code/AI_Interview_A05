@@ -49,3 +49,34 @@ class VoiceAnalysis(models.Model):
 
     def __str__(self):
         return f'{self.round or "未关联轮次"} - {self.speech_rate}字/分钟'
+
+
+class DifficultyConfig(models.Model):
+    DIFFICULTY_CODE_CHOICES = [
+        ('easy', '简单'),
+        ('medium', '中等'),
+        ('hard', '困难'),
+    ]
+
+    difficulty_code = models.CharField(max_length=16, unique=True, choices=DIFFICULTY_CODE_CHOICES, verbose_name='难度编码')
+    difficulty_name = models.CharField(max_length=32, verbose_name='难度名称')
+    answer_time_seconds = models.IntegerField(verbose_name='单轮默认答题时长(秒)')
+
+    technical_chain_count = models.IntegerField(verbose_name='技术知识链数量')
+    project_chain_count = models.IntegerField(verbose_name='项目深挖链数量')
+    scenario_chain_count = models.IntegerField(verbose_name='场景题链数量')
+
+    technical_max_followup_depth = models.IntegerField(verbose_name='技术链最大追问深度')
+    project_max_followup_depth = models.IntegerField(verbose_name='项目链最大追问深度')
+    scenario_max_followup_depth = models.IntegerField(verbose_name='场景链最大追问深度')
+
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
+
+    class Meta:
+        db_table = 'difficulty_config'
+        verbose_name = '难度配置'
+        verbose_name_plural = '难度配置'
+
+    def __str__(self):
+        return f'{self.difficulty_name}({self.difficulty_code})'

@@ -4,8 +4,21 @@ from .models import Interview, InterviewRound, InterviewRoundAnalysis
 
 @admin.register(Interview)
 class InterviewAdmin(admin.ModelAdmin):
-    list_display = ['id', 'user', 'position', 'status', 'mode', 'total_rounds', 'start_time', 'duration_seconds']
-    list_filter = ['status', 'mode', 'position']
+    list_display = [
+        'id',
+        'user',
+        'position',
+        'difficulty_config',
+        'status',
+        'mode',
+        'total_rounds',
+        'enable_technical_questions',
+        'enable_project_questions',
+        'enable_scenario_questions',
+        'start_time',
+        'duration_seconds',
+    ]
+    list_filter = ['status', 'mode', 'position', 'difficulty_config', 'enable_technical_questions', 'enable_project_questions', 'enable_scenario_questions']
     search_fields = ['user__username', 'position__name']
     ordering = ['-created_at']
     readonly_fields = ['created_at', 'updated_at']
