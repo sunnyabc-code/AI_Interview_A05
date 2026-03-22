@@ -131,6 +131,8 @@
 | `id` | ID | BigAutoField | 主键 | 轮次ID |
 | `interview` | Interview | ForeignKey | 外键 | 关联面试 |
 | `round_number` | Round Number | IntegerField | - | 轮次 |
+| `chain_index` | Chain Index | IntegerField | 默认1 | 提问链编号（同一题型下第几条链） |
+| `followup_depth` | Followup Depth | IntegerField | 默认0 | 追问深度（0为主问题，1开始为追问） |
 | `category` | Category | ForeignKey | 可空 | 题目分类 |
 | `question` | Question | ForeignKey | 可空 | 关联题目（问题ID） |
 | `question_content` | Question Content Snapshot | TextField | 可空 | 问题内容快照 |

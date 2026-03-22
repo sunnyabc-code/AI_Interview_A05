@@ -4,4 +4,6 @@ from interviews import views
 urlpatterns = [
     path('', views.InterviewListCreateView.as_view(), name='interview_list_create'),
     path('<int:interview_id>/', views.InterviewDetailView.as_view(), name='interview_detail'),
+    path('<int:interview_id>/next-question/', views.InterviewNextQuestionView.as_view(), name='interview_next_question'),
+    path('<int:interview_id>/rounds/<int:round_id>/answer/', views.InterviewRoundAnswerView.as_view(), name='interview_round_answer'),
 ]

@@ -50,6 +50,8 @@ class Interview(models.Model):
 class InterviewRound(models.Model):
     interview = models.ForeignKey(Interview, on_delete=models.CASCADE, related_name='rounds', verbose_name='面试')
     round_number = models.IntegerField(verbose_name='轮次')
+    chain_index = models.IntegerField(default=1, verbose_name='提问链编号')
+    followup_depth = models.IntegerField(default=0, verbose_name='追问深度')
     category = models.ForeignKey('questions.QuestionCategory', on_delete=models.SET_NULL, null=True, blank=True, verbose_name='题目分类')
     question = models.ForeignKey('questions.Question', on_delete=models.SET_NULL, null=True, blank=True, related_name='interview_rounds', verbose_name='题目')
     question_content = models.TextField(blank=True, verbose_name='问题内容快照')

@@ -105,3 +105,48 @@ class InterviewUpdateSerializer(serializers.Serializer):
     enable_technical_questions = serializers.BooleanField(required=False)
     enable_project_questions = serializers.BooleanField(required=False)
     enable_scenario_questions = serializers.BooleanField(required=False)
+
+
+class NextQuestionRequestSerializer(serializers.Serializer):
+    force_category = serializers.ChoiceField(
+        choices=['technical', 'project', 'scenario'],
+        required=False,
+        allow_null=True,
+        default=None,
+    )
+
+
+class InterviewRoundSerializer(serializers.Serializer):
+    round_id = serializers.IntegerField(required=False, allow_null=True)
+    interview_id = serializers.IntegerField()
+    round_number = serializers.IntegerField(required=False, allow_null=True)
+    chain_index = serializers.IntegerField()
+    followup_depth = serializers.IntegerField()
+    category = serializers.CharField(allow_null=True)
+    category_name = serializers.CharField(allow_null=True)
+    question_id = serializers.IntegerField(allow_null=True)
+    question_content = serializers.CharField(allow_blank=True)
+    answer_time_seconds = serializers.IntegerField(allow_null=True)
+    start_time = serializers.DateTimeField(required=False, allow_null=True)
+    need_llm_generation = serializers.BooleanField(required=False, default=False)
+    question_source = serializers.CharField(required=False)
+    llm_prompt = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+
+
+class InterviewRoundAnswerRequestSerializer(serializers.Serializer):
+    user_answer = serializers.CharField(required=True, allow_blank=False)
+
+
+class InterviewRoundAnswerResponseSerializer(serializers.Serializer):
+    interview_id = serializers.IntegerField()
+    round_id = serializers.IntegerField()
+    round_number = serializers.IntegerField()
+    chain_index = serializers.IntegerField()
+    followup_depth = serializers.IntegerField()
+    category = serializers.CharField(allow_null=True)
+    category_name = serializers.CharField(allow_null=True)
+    question_id = serializers.IntegerField(allow_null=True)
+    question_content = serializers.CharField(allow_blank=True)
+    user_answer = serializers.CharField()
+    end_time = serializers.DateTimeField(allow_null=True)
+    already_answered = serializers.BooleanField(default=False)
