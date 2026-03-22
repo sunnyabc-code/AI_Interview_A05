@@ -52,13 +52,7 @@ class VoiceAnalysis(models.Model):
 
 
 class DifficultyConfig(models.Model):
-    DIFFICULTY_CODE_CHOICES = [
-        ('easy', '简单'),
-        ('medium', '中等'),
-        ('hard', '困难'),
-    ]
-
-    difficulty_code = models.CharField(max_length=16, unique=True, choices=DIFFICULTY_CODE_CHOICES, verbose_name='难度编码')
+    difficulty_code = models.CharField(max_length=16, unique=True, verbose_name='难度编码')
     difficulty_name = models.CharField(max_length=32, verbose_name='难度名称')
     answer_time_seconds = models.IntegerField(verbose_name='单轮默认答题时长(秒)')
 

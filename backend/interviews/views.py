@@ -32,6 +32,7 @@ class InterviewListCreateView(APIView):
         interview = Interview.objects.create(
             user=request.user,
             position=validated_data['position'],
+            name=validated_data.get('name', ''),
             mode=validated_data.get('mode', 'text'),
             total_rounds=validated_data.get('total_rounds', 0),
             notes=validated_data.get('notes', ''),

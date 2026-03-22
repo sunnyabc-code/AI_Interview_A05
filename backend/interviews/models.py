@@ -19,6 +19,8 @@ class Interview(models.Model):
     position = models.ForeignKey('positions.JobPosition', on_delete=models.CASCADE, related_name='interviews', verbose_name='岗位')
     difficulty_config = models.ForeignKey('evaluations.DifficultyConfig', on_delete=models.SET_NULL, related_name='interviews', null=True, blank=True, verbose_name='难度配置')
     
+    name = models.CharField(max_length=200, default='', verbose_name='面试名称')
+    
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name='状态')
     mode = models.CharField(max_length=20, choices=MODE_CHOICES, default='text', verbose_name='交互模式')
     
