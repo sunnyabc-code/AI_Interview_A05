@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from interviews.models import Interview
+from interviews.models import Interview, InterviewRound
 from positions.models import JobPosition
 from evaluations.models import DifficultyConfig
 
@@ -62,6 +62,7 @@ class InterviewSerializer(serializers.ModelSerializer):
     user_id = serializers.IntegerField(source='user.id', read_only=True)
     position_name = serializers.CharField(source='position.name', read_only=True)
     difficulty_config_id = serializers.IntegerField(source='difficulty_config.id', read_only=True, allow_null=True)
+    difficulty_name = serializers.CharField(source='difficulty_config.difficulty_name', read_only=True, allow_null=True)
 
     class Meta:
         model = Interview
@@ -73,6 +74,7 @@ class InterviewSerializer(serializers.ModelSerializer):
             'position_name',
             'difficulty_config',
             'difficulty_config_id',
+            'difficulty_name',
             'status',
             'mode',
             'start_time',
@@ -150,3 +152,29 @@ class InterviewRoundAnswerResponseSerializer(serializers.Serializer):
     user_answer = serializers.CharField()
     end_time = serializers.DateTimeField(allow_null=True)
     already_answered = serializers.BooleanField(default=False)
+
+
+class InterviewRoundListSerializer(serializers.ModelSerializer):
+    round_id = serializers.IntegerField(source='id', read_only=True)
+    interview_id = serializers.IntegerField(source='interview.id', read_only=True)
+    category = serializers.CharField(source='category.code', read_only=True, allow_null=True)
+    category_name = serializers.CharField(source='category.name', read_only=True, allow_null=True)
+    question_id = serializers.IntegerField(source='question.id', read_only=True, allow_null=True)
+
+    class Meta:
+        model = InterviewRound
+        fields = [
+            'round_id',
+            'interview_id',
+            'round_number',
+            'chain_index',
+            'followup_depth',
+            'category',
+            'category_name',
+            'question_id',
+            'question_content',
+            'user_answer',
+            'start_time',
+            'end_time',
+            'created_at',
+        ]

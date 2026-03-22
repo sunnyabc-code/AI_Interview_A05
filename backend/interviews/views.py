@@ -17,6 +17,7 @@ from interviews.serializers import (
     InterviewRoundSerializer,
     InterviewRoundAnswerRequestSerializer,
     InterviewRoundAnswerResponseSerializer,
+    InterviewRoundListSerializer,
 )
 from questions.models import Question, QuestionCategory
 
@@ -140,6 +141,34 @@ class InterviewDetailView(APIView):
 
         interview.delete()
         return APIResponse.success(data=None, message='删除成功', code=200)
+
+
+class InterviewRoundListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def _get_user_interview(self, user, interview_id):
+        return Interview.objects.filter(id=interview_id, user=user).first()
+
+    @swagger_auto_schema(
+        tags=['Interview'],
+        operation_summary='获取面试轮次列表',
+        operation_description='获取指定面试的所有轮次记录',
+        security=[{'Bearer': []}],
+        responses={
+            200: openapi.Response('获取成功', InterviewRoundListSerializer(many=True)),
+            401: openapi.Response('未登录'),
+            404: openapi.Response('面试记录不存在'),
+        }
+    )
+    def get(self, request, interview_id):
+        interview = self._get_user_interview(request.user, interview_id)
+        if not interview:
+            return APIResponse.error(message='面试记录不存在', code=404)
+
+        rounds = InterviewRound.objects.filter(interview=interview).select_related('category', 'question').order_by('round_number')
+        data = InterviewRoundListSerializer(rounds, many=True).data
+        return APIResponse.success(data=data, message='获取成功', code=200)
+
 
 
 class InterviewNextQuestionView(APIView):
@@ -518,8 +547,13 @@ class InterviewRoundAnswerView(APIView):
         if not answer_text:
             return APIResponse.error(message='回答内容不能为空', code=400)
 
+        # 检查是否已回答
         already_answered = bool((round_obj.user_answer or '').strip()) and round_obj.end_time is not None
-        if not already_answered:
+        
+        # 如果之前回答是 "1"（占位符），允许覆盖
+        should_update = not already_answered or (round_obj.user_answer == '1')
+        
+        if should_update:
             round_obj.user_answer = answer_text
             round_obj.end_time = timezone.now()
             round_obj.save(update_fields=['user_answer', 'end_time'])
@@ -527,22 +561,6 @@ class InterviewRoundAnswerView(APIView):
         if interview.status == 'pending':
             interview.status = 'in_progress'
             interview.save(update_fields=['status'])
-
-        # 回答提交后若已达到题量上限，则自动结束面试。
-        scheduler = InterviewNextQuestionView()
-        next_slot = scheduler._determine_next_slot(interview)
-        if not next_slot and interview.status not in ['completed', 'cancelled']:
-            end_time = timezone.now()
-            all_rounds_count = InterviewRound.objects.filter(interview=interview).count()
-            duration_seconds = interview.duration_seconds
-            if interview.start_time:
-                duration_seconds = max(int((end_time - interview.start_time).total_seconds()), 0)
-
-            interview.status = 'completed'
-            interview.end_time = end_time
-            interview.total_rounds = all_rounds_count
-            interview.duration_seconds = duration_seconds
-            interview.save(update_fields=['status', 'end_time', 'total_rounds', 'duration_seconds'])
 
         response_data = {
             'interview_id': interview.id,

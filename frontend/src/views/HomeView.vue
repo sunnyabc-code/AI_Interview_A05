@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import InterviewModal from '../components/InterviewModal.vue'
 import ProfileView from './ProfileView.vue'
+import InterviewView from './InterviewView.vue'
 
 const router = useRouter()
 const user = ref(JSON.parse(localStorage.getItem('user') || '{}'))
 const activeMenu = ref(localStorage.getItem('activeMenu') || 'home')
-const showCreateModal = ref(false)
 
 const menuItems = [
   { id: 'home', label: '首页' },
@@ -19,14 +18,6 @@ const menuItems = [
 const handleMenuClick = (menuId: string) => {
   activeMenu.value = menuId
   localStorage.setItem('activeMenu', menuId)
-}
-
-const handleCreateInterview = () => {
-  showCreateModal.value = true
-}
-
-const handleModalClose = () => {
-  showCreateModal.value = false
 }
 
 const handleLogout = () => {
@@ -77,11 +68,7 @@ onMounted(() => {
       </div>
       
       <div v-if="activeMenu === 'interview'" class="content-area">
-        <h2>面试功能</h2>
-        <p>点击下方按钮创建新面试</p>
-        <button class="create-interview-btn" @click="handleCreateInterview">
-          创建新面试
-        </button>
+        <InterviewView :active="true" />
       </div>
       
       <div v-if="activeMenu === 'history'" class="content-area">
@@ -93,8 +80,6 @@ onMounted(() => {
         <ProfileView />
       </div>
     </main>
-    
-    <InterviewModal :show="showCreateModal" @close="handleModalClose" />
   </div>
 </template>
 
@@ -236,11 +221,6 @@ onMounted(() => {
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-}
-
-.create-interview-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
 @media (max-width: 768px) {

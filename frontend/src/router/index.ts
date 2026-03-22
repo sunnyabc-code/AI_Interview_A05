@@ -19,6 +19,12 @@ const router = createRouter({
       component: () => import('../views/HomeView.vue'),
       meta: { requiresAuth: true }
     },
+    {
+      path: '/interview/:id',
+      name: 'interview-session',
+      component: () => import('../views/InterviewSessionView.vue'),
+      meta: { requiresAuth: true }
+    },
   ],
 })
 
