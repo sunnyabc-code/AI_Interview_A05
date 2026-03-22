@@ -1,10 +1,15 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-
-const router = useRouter()
+import { ref, watch, onMounted } from 'vue'
 
 const API_BASE_URL = 'http://localhost:8000'
+
+const props = defineProps<{
+  show: boolean
+}>()
+
+const emit = defineEmits<{
+  close: []
+}>()
 
 const form = ref({
   name: '',
@@ -22,6 +27,7 @@ const positions = ref<any[]>([])
 const difficultyConfigs = ref<any[]>([])
 const loading = ref(false)
 const error = ref('')
+const success = ref('')
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem('access_token')
@@ -33,21 +39,13 @@ const getAuthHeaders = () => {
 
 const fetchPositions = async () => {
   try {
-    const token = localStorage.getItem('access_token')
-    console.log('Token:', token ? 'exists' : 'not found')
-    
     const response = await fetch(`${API_BASE_URL}/api/positions/`, {
       headers: getAuthHeaders()
     })
     
-    console.log('Response status:', response.status)
-    
     if (response.ok) {
       const data = await response.json()
       positions.value = data.data || []
-    } else {
-      const errorData = await response.json()
-      console.error('获取岗位列表失败:', errorData)
     }
   } catch (err) {
     console.error('获取岗位列表错误:', err)
@@ -63,12 +61,35 @@ const fetchDifficultyConfigs = async () => {
     if (response.ok) {
       const data = await response.json()
       difficultyConfigs.value = data.data || []
-    } else {
-      console.error('获取难度配置失败')
     }
   } catch (err) {
     console.error('获取难度配置错误:', err)
   }
+}
+
+const calculateTotalRounds = () => {
+  const selectedConfig = difficultyConfigs.value.find(c => c.id === form.value.difficulty_config)
+  
+  if (!selectedConfig) {
+    form.value.total_rounds = 0
+    return
+  }
+  
+  let total = 0
+  
+  if (form.value.enable_technical_questions) {
+    total += (selectedConfig.technical_chain_count || 0) * (selectedConfig.technical_max_followup_depth || 1)
+  }
+  
+  if (form.value.enable_project_questions) {
+    total += (selectedConfig.project_chain_count || 0) * (selectedConfig.project_max_followup_depth || 1)
+  }
+  
+  if (form.value.enable_scenario_questions) {
+    total += (selectedConfig.scenario_chain_count || 0) * (selectedConfig.scenario_max_followup_depth || 1)
+  }
+  
+  form.value.total_rounds = total
 }
 
 const handleSubmit = async () => {
@@ -77,16 +98,17 @@ const handleSubmit = async () => {
     return
   }
   
-  if (!form.value.position) {
+  if (form.value.position === null || form.value.position === undefined) {
     error.value = '请选择岗位'
     return
   }
 
   loading.value = true
   error.value = ''
+  success.value = ''
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/interviews/`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/interviews/`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(form.value)
@@ -95,7 +117,11 @@ const handleSubmit = async () => {
     const data = await response.json()
 
     if (data.code === 201 || data.code === 200) {
-      router.push('/home')
+      success.value = '创建成功'
+      setTimeout(() => {
+        emit('close')
+        resetForm()
+      }, 1500)
     } else {
       error.value = data.message || '创建失败'
     }
@@ -107,25 +133,55 @@ const handleSubmit = async () => {
 }
 
 const handleCancel = () => {
-  router.push('/home')
+  emit('close')
+  resetForm()
 }
 
-onMounted(() => {
-  const token = localStorage.getItem('access_token')
-  if (!token) {
-    router.push('/auth')
-    return
+const resetForm = () => {
+  form.value = {
+    name: '',
+    position: null,
+    enable_technical_questions: true,
+    enable_project_questions: true,
+    enable_scenario_questions: true,
+    difficulty_config: null,
+    mode: 'text',
+    total_rounds: 0,
+    notes: ''
   }
-  fetchPositions()
-  fetchDifficultyConfigs()
+  error.value = ''
+  success.value = ''
+}
+
+watch([
+  () => form.value.difficulty_config,
+  () => form.value.enable_technical_questions,
+  () => form.value.enable_project_questions,
+  () => form.value.enable_scenario_questions
+], () => {
+  calculateTotalRounds()
+}, { deep: true })
+
+watch(() => props.show, (newVal) => {
+  if (newVal) {
+    fetchPositions()
+    fetchDifficultyConfigs()
+  }
 })
 </script>
 
 <template>
-  <div class="create-interview-container">
-    <div class="create-interview-card">
-      <h2 class="page-title">创建新面试</h2>
+  <div v-if="show" class="modal-overlay" @click.self="handleCancel">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title">创建新面试</h2>
+        <button class="modal-close" @click="handleCancel">&times;</button>
+      </div>
       
+      <div v-if="success" class="success-message">
+        {{ success }}
+      </div>
+
       <div v-if="error" class="error-message">
         {{ error }}
       </div>
@@ -213,8 +269,10 @@ onMounted(() => {
             id="total_rounds"
             v-model.number="form.total_rounds"
             min="0"
-            placeholder="0表示自动计算"
+            placeholder="自动计算"
+            readonly
           />
+          <small class="form-hint">根据选择的题型和难度自动计算</small>
         </div>
 
         <div class="form-group">
@@ -223,7 +281,7 @@ onMounted(() => {
             id="notes"
             v-model="form.notes"
             placeholder="请输入备注信息（可选）"
-            rows="4"
+            rows="3"
           ></textarea>
         </div>
 
@@ -250,30 +308,63 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.create-interview-container {
-  min-height: calc(100vh - 60px);
-  background: #f5f5f5;
-  padding: 2rem;
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
+  align-items: center;
   justify-content: center;
-  align-items: flex-start;
+  z-index: 1000;
+  padding: 1rem;
 }
 
-.create-interview-card {
+.modal-content {
   background: white;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  padding: 2rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  max-width: 500px;
   width: 100%;
-  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
 }
 
-.page-title {
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.5rem;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.modal-title {
   color: #333;
-  font-size: 1.8rem;
+  font-size: 1.4rem;
   font-weight: 600;
-  margin-bottom: 1.5rem;
-  text-align: center;
+  margin: 0;
+}
+
+.modal-close {
+  background: transparent;
+  border: none;
+  font-size: 2rem;
+  color: #999;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  transition: color 0.3s ease;
+}
+
+.modal-close:hover {
+  color: #333;
 }
 
 .error-message {
@@ -281,27 +372,38 @@ onMounted(() => {
   color: #e74c3c;
   padding: 0.75rem;
   border-radius: 4px;
-  margin-bottom: 1rem;
+  margin: 0 1.5rem 1rem;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.success-message {
+  background: #d4edda;
+  color: #155724;
+  padding: 0.75rem;
+  border-radius: 4px;
+  margin: 0 1.5rem 1rem;
   text-align: center;
   font-size: 0.9rem;
 }
 
 .interview-form {
+  padding: 1.5rem;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1rem;
 }
 
 .form-group {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.4rem;
 }
 
 .form-group label {
   color: #333;
   font-weight: 500;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
 }
 
 .required {
@@ -313,10 +415,10 @@ onMounted(() => {
 .form-group input[type="number"],
 .form-group select,
 .form-group textarea {
-  padding: 0.75rem;
+  padding: 0.6rem;
   border: 1px solid #e0e0e0;
   border-radius: 4px;
-  font-size: 1rem;
+  font-size: 0.95rem;
   transition: all 0.3s ease;
   font-family: inherit;
 }
@@ -331,13 +433,13 @@ onMounted(() => {
 
 .form-group textarea {
   resize: vertical;
-  min-height: 80px;
+  min-height: 60px;
 }
 
 .checkbox-group {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.5rem;
 }
 
 .checkbox-label {
@@ -349,28 +451,34 @@ onMounted(() => {
 }
 
 .checkbox-label input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   cursor: pointer;
 }
 
 .checkbox-label span {
   color: #666;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
+}
+
+.form-hint {
+  color: #999;
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
 }
 
 .form-actions {
   display: flex;
-  gap: 1rem;
-  margin-top: 1rem;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
 }
 
 .btn {
   flex: 1;
-  padding: 0.75rem;
+  padding: 0.6rem;
   border: none;
   border-radius: 4px;
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -396,21 +504,17 @@ onMounted(() => {
 }
 
 .btn-submit:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
 }
 
 @media (max-width: 768px) {
-  .create-interview-container {
+  .modal-content {
+    max-height: 95vh;
+  }
+  
+  .interview-form {
     padding: 1rem;
-  }
-  
-  .create-interview-card {
-    padding: 1.5rem;
-  }
-  
-  .form-actions {
-    flex-direction: column;
   }
 }
 </style>

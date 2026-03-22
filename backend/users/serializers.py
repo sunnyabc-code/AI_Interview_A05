@@ -6,9 +6,20 @@ User = get_user_model()
 
 
 class UserSerializer(serializers.ModelSerializer):
+    target_positions = serializers.SerializerMethodField()
+    
+    def get_target_positions(self, obj):
+        return [
+            {
+                'id': position.id,
+                'name': position.name
+            }
+            for position in obj.target_positions.all()
+        ]
+    
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'phone', 'avatar', 'interview_count', 'created_at']
+        fields = ['id', 'username', 'email', 'phone', 'avatar', 'target_positions', 'interview_count', 'created_at']
 
 
 class UpdateUserSerializer(serializers.Serializer):
