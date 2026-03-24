@@ -30,6 +30,7 @@ class Evaluation(models.Model):
 
 class VoiceAnalysis(models.Model):
     round = models.ForeignKey('interviews.InterviewRound', on_delete=models.CASCADE, related_name='voice_analyses', null=True, blank=True, verbose_name='轮次')
+    audio = models.OneToOneField('interviews.InterviewRoundAudio', on_delete=models.SET_NULL, related_name='voice_analysis', null=True, blank=True, verbose_name='音频')
     
     duration_seconds = models.FloatField(verbose_name='时长(秒)')
     speech_rate = models.FloatField(verbose_name='语速(字/分钟)')

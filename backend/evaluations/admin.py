@@ -13,9 +13,9 @@ class EvaluationAdmin(admin.ModelAdmin):
 
 @admin.register(VoiceAnalysis)
 class VoiceAnalysisAdmin(admin.ModelAdmin):
-    list_display = ['id', 'round', 'duration_seconds', 'speech_rate', 'clarity_score', 'confidence_score', 'emotion']
+    list_display = ['id', 'round', 'audio', 'duration_seconds', 'speech_rate', 'clarity_score', 'confidence_score', 'emotion']
     list_filter = ['emotion']
-    search_fields = ['round__interview__user__username', 'transcript']
+    search_fields = ['round__interview__user__username', 'audio__file_name', 'audio__file_key', 'transcript']
     ordering = ['-created_at']
     readonly_fields = ['created_at']
 

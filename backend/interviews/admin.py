@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Interview, InterviewRound, InterviewRoundAnalysis
+from .models import Interview, InterviewRound, InterviewRoundAnalysis, InterviewRoundAudio
 
 
 @admin.register(Interview)
@@ -36,5 +36,14 @@ class InterviewRoundAdmin(admin.ModelAdmin):
 class InterviewRoundAnalysisAdmin(admin.ModelAdmin):
     list_display = ['id', 'round', 'overall_score', 'technical_score', 'communication_score', 'logic_score', 'created_at']
     search_fields = ['round__interview__user__username', 'overall_comment']
+    ordering = ['-created_at']
+    readonly_fields = ['created_at', 'updated_at']
+
+
+@admin.register(InterviewRoundAudio)
+class InterviewRoundAudioAdmin(admin.ModelAdmin):
+    list_display = ['id', 'round', 'uploaded_by', 'file_name', 'upload_status', 'asr_status', 'analysis_status', 'created_at']
+    list_filter = ['upload_status', 'asr_status', 'analysis_status']
+    search_fields = ['round__interview__user__username', 'file_name', 'file_key']
     ordering = ['-created_at']
     readonly_fields = ['created_at', 'updated_at']

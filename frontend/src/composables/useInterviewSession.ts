@@ -18,6 +18,7 @@ export function useInterviewSession() {
   const countdownSeconds = ref(5)
   const showCountdown = ref(false)
   const countdownInterval = ref<number | null>(null)
+  const VOICE_PLACEHOLDER_ANSWER = '1'
 
   const getAuthHeaders = () => {
     const token = localStorage.getItem('access_token')
@@ -420,9 +421,10 @@ export function useInterviewSession() {
   }
 
   const addUserMessage = (content: string) => {
+    const displayContent = content === VOICE_PLACEHOLDER_ANSWER ? '【语音回答】' : content
     messages.value.push({
       type: 'user',
-      content,
+      content: displayContent,
       time: new Date().toLocaleTimeString()
     })
     scrollToBottom()
@@ -450,9 +452,12 @@ export function useInterviewSession() {
       
       // 添加用户回答消息
       if (round.user_answer && round.user_answer !== '') {
+        const displayContent = round.user_answer === VOICE_PLACEHOLDER_ANSWER
+          ? '【语音回答】'
+          : round.user_answer
         messages.value.push({
           type: 'user',
-          content: round.user_answer,
+          content: displayContent,
           time: round.end_time ? new Date(round.end_time).toLocaleTimeString() : new Date().toLocaleTimeString()
         })
       }

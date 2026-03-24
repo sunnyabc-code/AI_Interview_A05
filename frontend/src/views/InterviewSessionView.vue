@@ -30,11 +30,156 @@ const {
 const loading = ref(false)
 const error = ref('')
 const userAnswer = ref('')
+const isRecording = ref(false)
+const isUploadingAudio = ref(false)
+const recordedAudioBlob = ref<Blob | null>(null)
+const recordedDurationSeconds = ref(0)
+const audioError = ref('')
 
-const handleSendMessage = () => {
-  if (!userAnswer.value.trim()) return
-  submitAnswer(userAnswer.value.trim())
+let mediaRecorder: any = null
+let mediaStream: MediaStream | null = null
+let audioChunks: BlobPart[] = []
+let recordingStartedAt = 0
+
+const VOICE_PLACEHOLDER_ANSWER = '1'
+
+const getAuthToken = () => localStorage.getItem('access_token') || ''
+
+const cleanupMediaResources = () => {
+  if (mediaStream) {
+    mediaStream.getTracks().forEach((track) => track.stop())
+    mediaStream = null
+  }
+  mediaRecorder = null
+}
+
+const startRecording = async () => {
+  audioError.value = ''
+  try {
+    mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    audioChunks = []
+    mediaRecorder = new (window as any).MediaRecorder(mediaStream)
+    mediaRecorder.ondataavailable = (event: any) => {
+      if (event.data && event.data.size > 0) {
+        audioChunks.push(event.data)
+      }
+    }
+    mediaRecorder.start()
+    recordingStartedAt = Date.now()
+    isRecording.value = true
+  } catch (err) {
+    console.error('启动录音失败:', err)
+    audioError.value = '无法启动录音，请检查麦克风权限'
+    cleanupMediaResources()
+  }
+}
+
+const stopRecording = async () => {
+  if (!mediaRecorder || mediaRecorder.state !== 'recording') {
+    return
+  }
+
+  await new Promise<void>((resolve) => {
+    if (!mediaRecorder) {
+      resolve()
+      return
+    }
+
+    mediaRecorder.onstop = () => {
+      const mimeType = mediaRecorder?.mimeType || 'audio/webm'
+      recordedAudioBlob.value = new Blob(audioChunks, { type: mimeType })
+      recordedDurationSeconds.value = Math.max(1, Math.round((Date.now() - recordingStartedAt) / 1000))
+      isRecording.value = false
+      cleanupMediaResources()
+      resolve()
+    }
+
+    mediaRecorder.stop()
+  })
+}
+
+const toggleRecording = async () => {
+  if (isSubmitting.value || isWaitingForQuestion.value || isInterviewEnded.value || isPaused.value) {
+    return
+  }
+
+  if (isRecording.value) {
+    await stopRecording()
+    return
+  }
+
+  await startRecording()
+}
+
+const uploadRecordedAudio = async () => {
+  if (!recordedAudioBlob.value || !interview.value || !currentRound.value) {
+    return false
+  }
+
+  const token = getAuthToken()
+  if (!token) {
+    audioError.value = '登录状态已失效，请重新登录'
+    return false
+  }
+
+  isUploadingAudio.value = true
+  audioError.value = ''
+
+  try {
+    const formData = new FormData()
+    const extension = recordedAudioBlob.value.type.includes('mpeg') ? 'mp3' : 'webm'
+    formData.append('audio_file', recordedAudioBlob.value, `round_${currentRound.value.round_id}.${extension}`)
+    formData.append('duration_seconds', String(recordedDurationSeconds.value))
+
+    const response = await fetch(
+      `http://localhost:8000/api/v1/interviews/${interview.value.id}/rounds/${currentRound.value.round_id}/audio/`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`
+        },
+        body: formData
+      }
+    )
+
+    const data = await response.json().catch(() => ({}))
+    if (!response.ok || ![200, 201].includes(data.code)) {
+      audioError.value = data.message || '音频上传失败'
+      return false
+    }
+
+    return true
+  } catch (err) {
+    console.error('上传音频失败:', err)
+    audioError.value = '音频上传失败，请稍后重试'
+    return false
+  } finally {
+    isUploadingAudio.value = false
+  }
+}
+
+const handleSendMessage = async () => {
+  const textAnswer = userAnswer.value.trim()
+  const hasAudioToSend = isRecording.value || !!recordedAudioBlob.value
+  if (!textAnswer && !hasAudioToSend) return
+
+  if (isRecording.value) {
+    await stopRecording()
+  }
+
+  let uploadedAudio = false
+  if (recordedAudioBlob.value) {
+    uploadedAudio = await uploadRecordedAudio()
+    if (!uploadedAudio) return
+  }
+
+  const answerToSubmit = textAnswer || (uploadedAudio ? VOICE_PLACEHOLDER_ANSWER : '')
+  if (!answerToSubmit) return
+
+  await submitAnswer(answerToSubmit)
   userAnswer.value = ''
+  recordedAudioBlob.value = null
+  recordedDurationSeconds.value = 0
 }
 
 const handleExit = () => {
@@ -43,8 +188,11 @@ const handleExit = () => {
 }
 
 const canSubmit = computed(() => {
+  const hasText = !!userAnswer.value.trim()
+  const hasAudio = isRecording.value || !!recordedAudioBlob.value
   return !isSubmitting.value && 
-         userAnswer.value.trim() && 
+         !isUploadingAudio.value &&
+         (hasText || hasAudio) && 
          currentRound.value && 
          !isWaitingForQuestion.value &&
          !isInterviewEnded.value &&
@@ -69,14 +217,16 @@ onMounted(async () => {
         // 已暂停状态，显示恢复按钮
       }
     }
-  } catch (err: any) {
-    error.value = err.message || '加载失败'
+  } catch (err) {
+    const e = err as any
+    error.value = e?.message || '加载失败'
   } finally {
     loading.value = false
   }
 })
 
 onUnmounted(() => {
+  cleanupMediaResources()
   stopPolling()
 })
 </script>
@@ -221,12 +371,19 @@ onUnmounted(() => {
               @keydown.enter.prevent="handleSendMessage"
             />
             <div class="input-buttons">
+              <button
+                class="record-btn"
+                @click="toggleRecording"
+                :disabled="isSubmitting || isWaitingForQuestion || isInterviewEnded || isPaused || isUploadingAudio"
+              >
+                {{ isRecording ? '停止录音' : '开始录音' }}
+              </button>
               <button 
                 class="send-btn" 
                 @click="handleSendMessage"
                 :disabled="!canSubmit"
               >
-                {{ isSubmitting ? '提交中...' : '提交回答' }}
+                {{ isSubmitting || isUploadingAudio ? '提交中...' : '提交回答' }}
               </button>
               <button 
                 class="retry-btn" 
@@ -236,6 +393,11 @@ onUnmounted(() => {
                 重试生成问题
               </button>
             </div>
+          </div>
+          <div v-if="isRecording || recordedAudioBlob || audioError" class="audio-status">
+            <span v-if="isRecording">录音中，请点击“提交回答”发送</span>
+            <span v-else-if="recordedAudioBlob">已录制 {{ recordedDurationSeconds }} 秒，点击“提交回答”发送</span>
+            <span v-if="audioError" class="audio-error">{{ audioError }}</span>
           </div>
         </div>
       </main>
@@ -642,6 +804,20 @@ onUnmounted(() => {
   gap: 0.5rem;
 }
 
+.audio-status {
+  margin-top: 0.6rem;
+  color: #4b5563;
+  font-size: 0.86rem;
+  display: flex;
+  gap: 0.8rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.audio-error {
+  color: #dc2626;
+}
+
 .message-input {
   flex: 1;
   padding: 0.8rem;
@@ -675,6 +851,31 @@ onUnmounted(() => {
   cursor: pointer;
   transition: all 0.3s ease;
   white-space: nowrap;
+}
+
+.record-btn {
+  background: #ec4899;
+  color: white;
+  border: none;
+  padding: 0.6rem 1.5rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.record-btn:hover:not(:disabled) {
+  background: #db2777;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(219, 39, 119, 0.35);
+}
+
+.record-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .send-btn:hover:not(:disabled) {

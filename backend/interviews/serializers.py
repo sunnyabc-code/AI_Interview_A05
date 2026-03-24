@@ -178,3 +178,31 @@ class InterviewRoundListSerializer(serializers.ModelSerializer):
             'end_time',
             'created_at',
         ]
+
+
+class InterviewRoundAudioUploadRequestSerializer(serializers.Serializer):
+    audio_file = serializers.FileField(required=True)
+    duration_seconds = serializers.FloatField(required=False, min_value=0)
+    codec = serializers.CharField(required=False, allow_blank=True, max_length=50)
+    sample_rate = serializers.IntegerField(required=False, min_value=1)
+    channels = serializers.IntegerField(required=False, min_value=1)
+
+
+class InterviewRoundAudioUploadResponseSerializer(serializers.Serializer):
+    audio_id = serializers.IntegerField()
+    interview_id = serializers.IntegerField()
+    round_id = serializers.IntegerField()
+    file_name = serializers.CharField()
+    file_key = serializers.CharField()
+    file_url = serializers.CharField()
+    mime_type = serializers.CharField(allow_blank=True)
+    file_size_bytes = serializers.IntegerField()
+    duration_seconds = serializers.FloatField(allow_null=True)
+    codec = serializers.CharField(allow_blank=True)
+    sample_rate = serializers.IntegerField(allow_null=True)
+    channels = serializers.IntegerField(allow_null=True)
+    upload_status = serializers.CharField()
+    asr_status = serializers.CharField()
+    analysis_status = serializers.CharField()
+    created_at = serializers.DateTimeField()
+    updated_at = serializers.DateTimeField()

@@ -101,3 +101,52 @@ class InterviewRoundAnalysis(models.Model):
 
     def __str__(self):
         return f'{self.round} - {self.overall_score}'
+
+
+class InterviewRoundAudio(models.Model):
+    UPLOAD_STATUS_CHOICES = [
+        ('uploaded', '已上传'),
+        ('failed', '上传失败'),
+        ('deleted', '已删除'),
+    ]
+    PROCESS_STATUS_CHOICES = [
+        ('pending', '待处理'),
+        ('running', '处理中'),
+        ('success', '成功'),
+        ('failed', '失败'),
+    ]
+
+    round = models.OneToOneField(InterviewRound, on_delete=models.CASCADE, related_name='audio', verbose_name='轮次')
+    uploaded_by = models.ForeignKey('users.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='uploaded_audios', verbose_name='上传用户')
+
+    file_url = models.CharField(max_length=500, verbose_name='音频URL')
+    file_key = models.CharField(max_length=255, unique=True, verbose_name='存储Key')
+    file_name = models.CharField(max_length=255, blank=True, verbose_name='文件名')
+    mime_type = models.CharField(max_length=100, blank=True, verbose_name='MIME类型')
+    codec = models.CharField(max_length=50, blank=True, verbose_name='编码')
+    sample_rate = models.IntegerField(null=True, blank=True, verbose_name='采样率')
+    channels = models.IntegerField(null=True, blank=True, verbose_name='声道数')
+    file_size_bytes = models.BigIntegerField(default=0, verbose_name='文件大小(字节)')
+    duration_seconds = models.FloatField(null=True, blank=True, verbose_name='时长(秒)')
+
+    upload_status = models.CharField(max_length=20, choices=UPLOAD_STATUS_CHOICES, default='uploaded', verbose_name='上传状态')
+    asr_status = models.CharField(max_length=20, choices=PROCESS_STATUS_CHOICES, default='pending', verbose_name='转写状态')
+    analysis_status = models.CharField(max_length=20, choices=PROCESS_STATUS_CHOICES, default='pending', verbose_name='分析状态')
+    error_message = models.TextField(blank=True, verbose_name='错误信息')
+    retry_count = models.IntegerField(default=0, verbose_name='重试次数')
+
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
+
+    class Meta:
+        db_table = 'interview_round_audios'
+        verbose_name = '轮次音频'
+        verbose_name_plural = '轮次音频'
+        indexes = [
+            models.Index(fields=['created_at']),
+            models.Index(fields=['asr_status']),
+            models.Index(fields=['analysis_status']),
+        ]
+
+    def __str__(self):
+        return f'{self.round} - {self.file_name or self.file_key}'

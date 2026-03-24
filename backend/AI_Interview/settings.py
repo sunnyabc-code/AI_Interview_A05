@@ -134,6 +134,12 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
+# 单文件上传大小限制（默认20MB）
+AUDIO_UPLOAD_MAX_BYTES = 20 * 1024 * 1024
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
