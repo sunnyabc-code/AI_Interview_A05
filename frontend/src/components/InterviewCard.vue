@@ -1,10 +1,27 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
 
 const props = defineProps<{
   interview: any
   onCardClick: (interview: any) => void
+  onDelete: (interviewId: number) => void
 }>()
+
+const showDeleteConfirm = ref(false)
+
+const handleDeleteClick = (event: Event) => {
+  event.stopPropagation()
+  showDeleteConfirm.value = true
+}
+
+const confirmDelete = () => {
+  props.onDelete(props.interview.id)
+  showDeleteConfirm.value = false
+}
+
+const cancelDelete = () => {
+  showDeleteConfirm.value = false
+}
 
 const statusColorMap: Record<string, string> = {
   pending: '#999',
@@ -33,12 +50,21 @@ const statusColor = (status: string) => {
   <div class="interview-card" @click="onCardClick(interview)">
     <div class="card-header">
       <h3 class="interview-name">{{ interview.name || '未命名面试' }}</h3>
-      <span 
-        class="status-badge"
-        :style="{ backgroundColor: statusColor(interview.status) }"
-      >
-        {{ statusText(interview.status) }}
-      </span>
+      <div class="header-actions">
+        <span 
+          class="status-badge"
+          :style="{ backgroundColor: statusColor(interview.status) }"
+        >
+          {{ statusText(interview.status) }}
+        </span>
+        <button 
+          class="delete-btn"
+          @click="handleDeleteClick"
+          title="删除面试"
+        >
+          删除
+        </button>
+      </div>
     </div>
     <div class="card-body">
         <div class="info-item">
@@ -63,6 +89,20 @@ const statusColor = (status: string) => {
       </div>
     </div>
   </div>
+  
+  <!-- 删除确认弹窗 - 使用teleport移到body下避免层级问题 -->
+  <Teleport to="body">
+    <div v-if="showDeleteConfirm" class="delete-confirm-overlay" @click="cancelDelete">
+      <div class="delete-confirm-modal" @click.stop>
+        <h4>确认删除</h4>
+        <p>确定要删除这个面试吗？删除后将无法恢复。</p>
+        <div class="confirm-actions">
+          <button class="cancel-btn" @click="cancelDelete">取消</button>
+          <button class="confirm-btn" @click="confirmDelete">删除</button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -87,6 +127,31 @@ const statusColor = (status: string) => {
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 1rem;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.delete-btn {
+  background: #dc3545;
+  color: white;
+  border: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.delete-btn:hover {
+  background: #c82333;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);
 }
 
 .interview-name {
@@ -154,5 +219,81 @@ const statusColor = (status: string) => {
   .label {
     min-width: auto;
   }
+}
+
+/* 删除确认弹窗样式 */
+.delete-confirm-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.delete-confirm-modal {
+  background: white;
+  border-radius: 8px;
+  padding: 2rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  max-width: 400px;
+  width: 90%;
+}
+
+.delete-confirm-modal h4 {
+  color: #333;
+  margin: 0 0 1rem 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.delete-confirm-modal p {
+  color: #666;
+  margin: 0 0 1.5rem 0;
+  line-height: 1.5;
+}
+
+.confirm-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+}
+
+.cancel-btn {
+  background: #6c757d;
+  color: white;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.cancel-btn:hover {
+  background: #5a6268;
+  transform: translateY(-1px);
+}
+
+.confirm-btn {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.confirm-btn:hover {
+  background: #c82333;
+  transform: translateY(-1px);
 }
 </style>

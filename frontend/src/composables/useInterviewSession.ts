@@ -13,8 +13,11 @@ export function useInterviewSession() {
   const isSubmitting = ref(false)
   const isWaitingForQuestion = ref(false)
   const isInterviewEnded = ref(false)
+  const isPaused = ref(false)
   const pollingInterval = ref<number | null>(null)
-  const isAutoGenerating = ref(false)
+  const countdownSeconds = ref(5)
+  const showCountdown = ref(false)
+  const countdownInterval = ref<number | null>(null)
 
   const getAuthHeaders = () => {
     const token = localStorage.getItem('access_token')
@@ -36,6 +39,8 @@ export function useInterviewSession() {
         const data = await response.json()
         if (data.code === 200) {
           interview.value = data.data
+          isPaused.value = data.data.status === 'paused'
+          isInterviewEnded.value = data.data.status === 'completed'
           return data.data
         } else {
           throw new Error(data.message || '获取面试详情失败')
@@ -74,49 +79,152 @@ export function useInterviewSession() {
     return []
   }
 
-  const checkInterviewEnd = async () => {
-    if (!interview.value) return false
+  const startInterview = async () => {
+    const interviewId = route.params.id as string
     
-    if (interview.value.status !== 'completed') {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1/interviews/${interviewId}/start/`, {
+        method: 'POST',
+        headers: getAuthHeaders()
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        if (data.code === 200) {
+          interview.value = { ...interview.value, ...data.data }
+          startCountdown()
+          return true
+        } else {
+          addSystemMessage(data.message || '开始面试失败')
+          return false
+        }
+      } else {
+        const errorData = await response.json().catch(() => ({ message: '未知错误' }))
+        addSystemMessage(errorData.message || '开始面试失败')
+        return false
+      }
+    } catch (err) {
+      console.error('开始面试失败:', err)
+      addSystemMessage('开始面试失败，请稍后重试')
       return false
     }
+  }
+
+  const pauseInterview = async () => {
+    const interviewId = route.params.id as string
     
-    const rounds = await fetchRounds()
-    if (!rounds || rounds.length === 0) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1/interviews/${interviewId}/pause/`, {
+        method: 'POST',
+        headers: getAuthHeaders()
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        if (data.code === 200) {
+          interview.value = { ...interview.value, ...data.data }
+          isPaused.value = true
+          addSystemMessage('面试已暂停')
+          return true
+        } else {
+          addSystemMessage(data.message || '暂停面试失败')
+          return false
+        }
+      } else {
+        const errorData = await response.json().catch(() => ({ message: '未知错误' }))
+        addSystemMessage(errorData.message || '暂停面试失败')
+        return false
+      }
+    } catch (err) {
+      console.error('暂停面试失败:', err)
+      addSystemMessage('暂停面试失败，请稍后重试')
       return false
     }
+  }
+
+  const resumeInterview = async () => {
+    const interviewId = route.params.id as string
     
-    const maxRoundNumber = Math.max(...rounds.map((r: any) => r.round_number))
-    const lastRound = rounds.find((r: any) => r.round_number === maxRoundNumber)
-    
-    if (!lastRound) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1/interviews/${interviewId}/resume/`, {
+        method: 'POST',
+        headers: getAuthHeaders()
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        if (data.code === 200) {
+          interview.value = { ...interview.value, ...data.data }
+          isPaused.value = false
+          addSystemMessage('面试已恢复')
+          getNextQuestion()
+          return true
+        } else {
+          addSystemMessage(data.message || '恢复面试失败')
+          return false
+        }
+      } else {
+        const errorData = await response.json().catch(() => ({ message: '未知错误' }))
+        addSystemMessage(errorData.message || '恢复面试失败')
+        return false
+      }
+    } catch (err) {
+      console.error('恢复面试失败:', err)
+      addSystemMessage('恢复面试失败，请稍后重试')
       return false
     }
+  }
+
+  const endInterview = async () => {
+    const interviewId = route.params.id as string
     
-    if (lastRound.user_answer === '1') {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1/interviews/${interviewId}/end/`, {
+        method: 'POST',
+        headers: getAuthHeaders()
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        if (data.code === 200) {
+          interview.value = { ...interview.value, ...data.data }
+          isInterviewEnded.value = true
+          addSystemMessage('面试已结束！感谢您的参与。')
+          stopPolling()
+          return true
+        } else {
+          addSystemMessage(data.message || '结束面试失败')
+          return false
+        }
+      } else {
+        const errorData = await response.json().catch(() => ({ message: '未知错误' }))
+        addSystemMessage(errorData.message || '结束面试失败')
+        return false
+      }
+    } catch (err) {
+      console.error('结束面试失败:', err)
+      addSystemMessage('结束面试失败，请稍后重试')
       return false
     }
-    
-    return maxRoundNumber === interview.value.total_rounds
   }
 
   const getNextQuestion = async () => {
+    if (isPaused.value || isInterviewEnded.value || isWaitingForQuestion.value) return
+    
     isWaitingForQuestion.value = true
     
     try {
       const rounds = await fetchRounds()
       
       if (!rounds || rounds.length === 0) {
-        // 没有轮次，启动问题生成
-        await startQuestionGeneration()
+        // 没有轮次，生成第一个问题
+        await generateNextQuestion()
         return
       }
       
       const unansweredRound = rounds.find((r: any) => {
-        // 查找未回答的问题：
-        // 1. user_answer 是 '1'（占位符）
-        // 2. user_answer 是空字符串或 null（问题已生成但未回答）
-        return r.user_answer === '1' || !r.user_answer || r.user_answer === ''
+        // 查找未回答的问题
+        return !r.user_answer || r.user_answer === ''
       })
       
       if (unansweredRound) {
@@ -127,20 +235,19 @@ export function useInterviewSession() {
         return
       }
       
-      const interviewEnded = await checkInterviewEnd()
-      if (interviewEnded) {
-        isInterviewEnded.value = true
-        addSystemMessage('面试已结束！感谢您的参与。')
+      // 所有问题都已回答，检查是否达到总轮次
+      const maxRoundNumber = Math.max(...rounds.map((r: any) => r.round_number))
+      const totalRounds = interview.value.total_rounds || 0
+      
+      if (maxRoundNumber >= totalRounds && totalRounds > 0) {
+        // 达到总轮次，结束面试
+        await endInterview()
         isWaitingForQuestion.value = false
-        stopPolling()
         return
       }
       
-      // 没有未回答的问题，但面试未结束，等待后端生成
-      if (messages.value[messages.value.length - 1]?.content !== '⏳ 问题还在生成中，请稍候...') {
-        addSystemMessage('⏳ 问题还在生成中，请稍候...')
-      }
-      startPolling()
+      // 还有轮次未生成，生成下一个问题
+      await generateNextQuestion()
       
     } catch (err) {
       console.error('获取下一题失败:', err)
@@ -149,118 +256,59 @@ export function useInterviewSession() {
     }
   }
 
-  const startQuestionGeneration = async (): Promise<boolean> => {
-    if (isAutoGenerating.value) {
-      console.log('Already auto generating, returning')
-      return false
-    }
-    isAutoGenerating.value = true
-    
-    addSystemMessage('正在启动问题生成...')
+  const generateNextQuestion = async () => {
+    isWaitingForQuestion.value = true
+    addSystemMessage('⏳ 正在生成问题，请稍候...')
     
     try {
       const interviewId = route.params.id as string
-      console.log('Calling next-question API for interview:', interviewId)
       const response = await fetch(`${API_BASE_URL}/api/v1/interviews/${interviewId}/next-question/`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({})
       })
       
-      console.log('next-question response status:', response.status)
-      
       if (response.ok) {
         const data = await response.json()
-        console.log('next-question response data:', data)
         if (data.code === 201) {
-          // 问题生成成功，自动提交回答 "1"
-          const roundId = data.data.round_id
-          console.log('Question generated, roundId:', roundId, 'calling submitAutoAnswer')
-          await submitAutoAnswer(roundId)
-          return true
+          // 问题生成成功
+          const newRound = data.data
+          currentRound.value = newRound
+          addQuestionMessage(newRound)
+          isWaitingForQuestion.value = false
         } else if (data.code === 200) {
-          // ，没有下一题了
+          // 没有下一题了
+          addSystemMessage('所有问题已生成完毕')
+          currentRound.value = null
           isWaitingForQuestion.value = false
-          isAutoGenerating.value = false
-          return false
+          await endInterview()
         } else {
-          addSystemMessage(data.message || '启动问题生成失败')
+          addSystemMessage(`生成问题失败: ${data.message || '未知错误'}`)
+          currentRound.value = null
           isWaitingForQuestion.value = false
-          isAutoGenerating.value = false
-          return false
         }
       } else {
-        // 读取错误响应
-        const errorData = await response.json().catch(() => ({ message: '未知错误' }))
-        console.error('next-question error:', errorData)
-        addSystemMessage(errorData.message || '启动问题生成失败，请稍后重试')
+        const errorData = await response.json().catch(() => ({ message: '服务器错误' }))
+        addSystemMessage(`生成问题失败: ${errorData.message || '服务器错误'}`)
+        currentRound.value = null
         isWaitingForQuestion.value = false
-        isAutoGenerating.value = false
-        return false
       }
     } catch (err) {
-      console.error('启动问题生成失败:', err)
-      addSystemMessage('启动问题生成失败，请稍后重试')
+      console.error('生成问题失败:', err)
+      addSystemMessage('生成问题失败，请点击重试按钮')
+      currentRound.value = null
       isWaitingForQuestion.value = false
-      isAutoGenerating.value = false
-      return false
     }
   }
 
-  const submitAutoAnswer = async (roundId: number) => {
-    console.log('submitAutoAnswer called, roundId:', roundId, 'interview.value:', interview.value)
-    if (!interview.value) {
-      console.log('interview.value is null, returning')
-      return
-    }
-    
-    try {
-      const response = await fetch(
-        `${API_BASE_URL}/api/v1/interviews/${interview.value.id}/rounds/${roundId}/answer/`,
-        {
-          method: 'POST',
-          headers: getAuthHeaders(),
-          body: JSON.stringify({ user_answer: '1' })
-        }
-      )
-      
-      console.log('submitAutoAnswer response status:', response.status)
-      
-      if (response.ok) {
-        const data = await response.json()
-        console.log('submitAutoAnswer response data:', data)
-        if (data.code === 200) {
-          console.log('自动回答提交成功，准备调用 startQuestionGeneration')
-          // 自动回答提交成功，继续生成下一个问题
-          // 先重置状态，然后调用 startQuestionGeneration
-          isAutoGenerating.value = false
-          const hasNext = await startQuestionGeneration()
-          if (!hasNext) {
-            // 没有下一题了，停止自动生成
-            console.log('No more questions, stopping auto generation')
-            addSystemMessage('所有问题已生成完毕，请开始作答')
-          }
-        } else {
-          console.error('自动提交回答失败:', data.message)
-          isAutoGenerating.value = false
-          addSystemMessage('问题生成中断，请刷新页面重试')
-        }
-      } else {
-        // 读取错误响应
-        const errorData = await response.json().catch(() => ({ message: '未知错误' }))
-        console.error('submitAutoAnswer error:', errorData)
-        isAutoGenerating.value = false
-        addSystemMessage(errorData.message || '问题生成中断，请刷新页面重试')
-      }
-    } catch (err) {
-      console.error('自动提交回答失败:', err)
-      isAutoGenerating.value = false
-      addSystemMessage('问题生成中断，请刷新页面重试')
+  const retryGenerateQuestion = async () => {
+    if (!isInterviewEnded.value && !isPaused.value && !isWaitingForQuestion.value) {
+      await generateNextQuestion()
     }
   }
 
   const submitAnswer = async (answer: string) => {
-    if (!answer.trim() || isSubmitting.value || !currentRound.value) return false
+    if (!answer.trim() || isSubmitting.value || !currentRound.value || isPaused.value) return false
     
     addUserMessage(answer)
     
@@ -282,36 +330,7 @@ export function useInterviewSession() {
           addSystemMessage('回答已提交')
           currentRound.value = null
           
-          // 检查是否是最后一轮
-          const rounds = await fetchRounds()
-          if (rounds && rounds.length > 0) {
-            const maxRoundNumber = Math.max(...rounds.map((r: any) => r.round_number))
-            const currentRoundNumber = data.data.round_number
-            
-            if (currentRoundNumber === maxRoundNumber) {
-              // 是最后一轮，调用 PATCH 接口设置面试状态为 completed
-              const patchResponse = await fetch(
-                `${API_BASE_URL}/api/v1/interviews/${interview.value.id}/`,
-                {
-                  method: 'PATCH',
-                  headers: getAuthHeaders(),
-                  body: JSON.stringify({ status: 'completed' })
-                }
-              )
-              
-              if (patchResponse.ok) {
-                const patchData = await patchResponse.json()
-                if (patchData.code === 200) {
-                  interview.value = patchData.data
-                  isInterviewEnded.value = true
-                  addSystemMessage('面试已结束！感谢您的参与。')
-                  stopPolling()
-                  return true
-                }
-              }
-            }
-          }
-          
+          // 获取下一个问题
           await getNextQuestion()
           return true
         } else {
@@ -324,7 +343,8 @@ export function useInterviewSession() {
         router.push('/auth')
         return false
       } else {
-        addSystemMessage('网络错误，请稍后重试')
+        const errorData = await response.json().catch(() => ({ message: '未知错误' }))
+        addSystemMessage(errorData.message || '网络错误，请稍后重试')
         return false
       }
     } catch (err) {
@@ -333,6 +353,28 @@ export function useInterviewSession() {
       return false
     } finally {
       isSubmitting.value = false
+    }
+  }
+
+  const startCountdown = () => {
+    showCountdown.value = true
+    countdownSeconds.value = 5
+    
+    countdownInterval.value = window.setInterval(() => {
+      countdownSeconds.value--
+      if (countdownSeconds.value <= 0) {
+        stopCountdown()
+        addWelcomeMessage()
+        getNextQuestion()
+      }
+    }, 1000)
+  }
+
+  const stopCountdown = () => {
+    if (countdownInterval.value) {
+      clearInterval(countdownInterval.value)
+      countdownInterval.value = null
+      showCountdown.value = false
     }
   }
 
@@ -386,14 +428,6 @@ export function useInterviewSession() {
     scrollToBottom()
   }
 
-  const addWaitingMessage = () => {
-    messages.value.push({
-      type: 'system',
-      content: '⏳ 生成中，请稍候...'
-    })
-    scrollToBottom()
-  }
-
   const addWelcomeMessage = () => {
     messages.value.push({
       type: 'system',
@@ -405,9 +439,9 @@ export function useInterviewSession() {
     const rounds = await fetchRounds()
     if (!rounds || rounds.length === 0) return
 
-    // 过滤出已回答的轮次（user_answer 不是 '1'）并按轮次号排序
+    // 过滤出已回答的轮次并按轮次号排序
     const answeredRounds = rounds
-      .filter((r: any) => r.user_answer && r.user_answer !== '1')
+      .filter((r: any) => r.user_answer && r.user_answer !== '')
       .sort((a: any, b: any) => a.round_number - b.round_number)
 
     for (const round of answeredRounds) {
@@ -415,7 +449,7 @@ export function useInterviewSession() {
       addQuestionMessage(round)
       
       // 添加用户回答消息
-      if (round.user_answer && round.user_answer !== '1') {
+      if (round.user_answer && round.user_answer !== '') {
         messages.value.push({
           type: 'user',
           content: round.user_answer,
@@ -437,6 +471,7 @@ export function useInterviewSession() {
     const statusMap: Record<string, string> = {
       pending: '待开始',
       in_progress: '进行中',
+      paused: '已暂停',
       completed: '已完成',
       cancelled: '已取消'
     }
@@ -450,10 +485,18 @@ export function useInterviewSession() {
     isSubmitting,
     isWaitingForQuestion,
     isInterviewEnded,
-    isAutoGenerating,
+    isPaused,
+    countdownSeconds,
+    showCountdown,
     
     fetchInterviewDetail,
+    startInterview,
+    pauseInterview,
+    resumeInterview,
+    endInterview,
     getNextQuestion,
+    generateNextQuestion,
+    retryGenerateQuestion,
     submitAnswer,
     startPolling,
     stopPolling,

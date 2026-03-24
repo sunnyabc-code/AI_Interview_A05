@@ -26,7 +26,11 @@ class Interview(models.Model):
     
     start_time = models.DateTimeField(null=True, blank=True, verbose_name='开始时间')
     end_time = models.DateTimeField(null=True, blank=True, verbose_name='结束时间')
+    pause_time = models.DateTimeField(null=True, blank=True, verbose_name='暂停时间')
     duration_seconds = models.IntegerField(default=0, verbose_name='时长(秒)')
+    total_pause_duration = models.IntegerField(default=0, verbose_name='总暂停时长(秒)')
+    actual_duration = models.IntegerField(default=0, verbose_name='实际面试时长(秒)')
+    pause_count = models.IntegerField(default=0, verbose_name='暂停次数')
     
     total_rounds = models.IntegerField(default=0, verbose_name='总轮次')
     enable_technical_questions = models.BooleanField(default=True, verbose_name='是否选择技术知识题')

@@ -213,9 +213,10 @@ CORS_ALLOW_HEADERS = [
 ]
 
 # LLM 配置（OpenAI 兼容接口）
-LLM_BASE_URL = os.getenv('LLM_BASE_URL', 'https://api-inference.modelscope.cn/v1/')
-LLM_API_KEY = os.getenv('LLM_API_KEY', 'ms-88e1fff0-bed9-4cb6-9d12-074df8af4ccf')
-LLM_MODEL = os.getenv('LLM_MODEL', 'Qwen/Qwen3.5-27B')
+LLM_BASE_URL = os.getenv('LLM_BASE_URL', 'https://api.siliconflow.cn/v1')
+LLM_API_KEY = os.getenv('LLM_API_KEY', 'sk-dluftqepbembchzclitolntrxnmpfukijjivfjxkwyabtfnk')
+LLM_MODEL = os.getenv('LLM_MODEL', 'deepseek-ai/DeepSeek-V3.2')
 LLM_TIMEOUT_SECONDS = int(os.getenv('LLM_TIMEOUT_SECONDS', '90'))
 LLM_RETRY_COUNT = int(os.getenv('LLM_RETRY_COUNT', '2'))
 LLM_RETRY_BACKOFF_SECONDS = float(os.getenv('LLM_RETRY_BACKOFF_SECONDS', '1.5'))
+

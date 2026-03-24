@@ -21,6 +21,9 @@ const selectedInterview = ref<any>(null)
 const interviews = ref<any[]>([])
 const loading = ref(false)
 const error = ref('')
+const toastMessage = ref('')
+const toastType = ref<'success' | 'error'>('success')
+const showToast = ref(false)
 
 const API_BASE_URL = 'http://localhost:8000'
 
@@ -105,6 +108,44 @@ const handleStartInterview = async (interview: any) => {
   }
 }
 
+const showToastMessage = (message: string, type: 'success' | 'error' = 'success') => {
+  toastMessage.value = message
+  toastType.value = type
+  showToast.value = true
+  setTimeout(() => {
+    showToast.value = false
+  }, 3000)
+}
+
+const handleDeleteInterview = async (interviewId: number) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/v1/interviews/${interviewId}/`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    })
+    
+    if (response.ok) {
+      const data = await response.json()
+      if (data.code === 200) {
+        fetchInterviews()
+        emit('update')
+        showToastMessage('删除面试成功', 'success')
+      } else {
+        showToastMessage(data.message || '删除面试失败', 'error')
+      }
+    } else if (response.status === 401) {
+      localStorage.removeItem('access_token')
+      localStorage.removeItem('user')
+      window.location.href = '/auth'
+    } else {
+      const errorData = await response.json().catch(() => ({ message: '删除面试失败' }))
+      showToastMessage(errorData.message || '删除面试失败', 'error')
+    }
+  } catch (err) {
+    showToastMessage('网络错误，请稍后重试', 'error')
+  }
+}
+
 watch(() => props.active, (newActive) => {
   if (newActive) {
     fetchInterviews()
@@ -147,6 +188,7 @@ onMounted(() => {
           :key="interview.id"
           :interview="interview"
           :on-card-click="handleInterviewCardClick"
+          :on-delete="handleDeleteInterview"
         />
       </div>
     </div>
@@ -158,6 +200,15 @@ onMounted(() => {
       @close="handleDetailModalClose"
       @start="handleStartInterview"
     />
+    
+    <!-- Toast 提示 -->
+    <Teleport to="body">
+      <Transition name="toast">
+        <div v-if="showToast" class="toast-container" :class="toastType">
+          <span class="toast-message">{{ toastMessage }}</span>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -249,5 +300,53 @@ onMounted(() => {
     padding: 0.8rem;
     font-size: 1rem;
   }
+}
+
+/* Toast 提示样式 */
+.toast-container {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 1rem 2rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 9999;
+  font-weight: 500;
+  font-size: 0.95rem;
+}
+
+.toast-container.success {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.toast-container.error {
+  background: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.toast-message {
+  display: block;
+}
+
+/* Toast 动画 */
+.toast-enter-active,
+.toast-leave-active {
+  transition: all 0.3s ease;
+}
+
+.toast-enter-from,
+.toast-leave-to {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-20px);
+}
+
+.toast-enter-to,
+.toast-leave-from {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
 }
 </style>

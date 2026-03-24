@@ -579,3 +579,180 @@ class InterviewRoundAnswerView(APIView):
         }
         message = '该轮已提交，返回已保存结果' if already_answered else '提交回答成功'
         return APIResponse.success(data=response_data, message=message, code=200)
+
+
+class InterviewStartView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def _get_user_interview(self, user, interview_id):
+        return Interview.objects.filter(id=interview_id, user=user).first()
+
+    @swagger_auto_schema(
+        tags=['Interview'],
+        operation_summary='开始面试',
+        operation_description='将面试状态设置为进行中，记录开始时间',
+        security=[{'Bearer': []}],
+        responses={
+            200: openapi.Response('面试开始成功'),
+            400: openapi.Response('参数错误或状态不允许'),
+            401: openapi.Response('未登录'),
+            404: openapi.Response('面试记录不存在'),
+        }
+    )
+    @transaction.atomic
+    def post(self, request, interview_id):
+        interview = self._get_user_interview(request.user, interview_id)
+        if not interview:
+            return APIResponse.error(message='面试记录不存在', code=404)
+        
+        if interview.status == 'in_progress':
+            return APIResponse.error(message='面试已经开始', code=400)
+        
+        interview.status = 'in_progress'
+        interview.start_time = timezone.now()
+        interview.save(update_fields=['status', 'start_time'])
+        
+        return APIResponse.success(
+            data={
+                'interview_id': interview.id,
+                'status': interview.status,
+                'start_time': interview.start_time
+            },
+            message='面试已开始'
+        )
+
+
+class InterviewPauseView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def _get_user_interview(self, user, interview_id):
+        return Interview.objects.filter(id=interview_id, user=user).first()
+
+    @swagger_auto_schema(
+        tags=['Interview'],
+        operation_summary='暂停面试',
+        operation_description='将面试状态设置为暂停，记录暂停时间',
+        security=[{'Bearer': []}],
+        responses={
+            200: openapi.Response('面试暂停成功'),
+            400: openapi.Response('参数错误或状态不允许'),
+            401: openapi.Response('未登录'),
+            404: openapi.Response('面试记录不存在'),
+        }
+    )
+    @transaction.atomic
+    def post(self, request, interview_id):
+        interview = self._get_user_interview(request.user, interview_id)
+        if not interview:
+            return APIResponse.error(message='面试记录不存在', code=404)
+        
+        if interview.status != 'in_progress':
+            return APIResponse.error(message='面试未在进行中', code=400)
+        
+        interview.status = 'paused'
+        interview.pause_time = timezone.now()
+        interview.pause_count = (interview.pause_count or 0) + 1
+        interview.save(update_fields=['status', 'pause_time', 'pause_count'])
+        
+        return APIResponse.success(
+            data={
+                'interview_id': interview.id,
+                'status': interview.status,
+                'pause_time': interview.pause_time
+            },
+            message='面试已暂停'
+        )
+
+
+class InterviewResumeView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def _get_user_interview(self, user, interview_id):
+        return Interview.objects.filter(id=interview_id, user=user).first()
+
+    @swagger_auto_schema(
+        tags=['Interview'],
+        operation_summary='恢复面试',
+        operation_description='将面试状态设置为进行中，计算暂停时长',
+        security=[{'Bearer': []}],
+        responses={
+            200: openapi.Response('面试恢复成功'),
+            400: openapi.Response('参数错误或状态不允许'),
+            401: openapi.Response('未登录'),
+            404: openapi.Response('面试记录不存在'),
+        }
+    )
+    @transaction.atomic
+    def post(self, request, interview_id):
+        interview = self._get_user_interview(request.user, interview_id)
+        if not interview:
+            return APIResponse.error(message='面试记录不存在', code=404)
+        
+        if interview.status != 'paused':
+            return APIResponse.error(message='面试未暂停', code=400)
+        
+        # 计算暂停时长
+        pause_duration = int((timezone.now() - interview.pause_time).total_seconds())
+        interview.total_pause_duration = (interview.total_pause_duration or 0) + pause_duration
+        
+        interview.status = 'in_progress'
+        interview.save(update_fields=['status', 'total_pause_duration'])
+        
+        return APIResponse.success(
+            data={
+                'interview_id': interview.id,
+                'status': interview.status,
+                'resume_time': timezone.now(),
+                'pause_duration': pause_duration
+            },
+            message='面试已恢复'
+        )
+
+
+class InterviewEndView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def _get_user_interview(self, user, interview_id):
+        return Interview.objects.filter(id=interview_id, user=user).first()
+
+    @swagger_auto_schema(
+        tags=['Interview'],
+        operation_summary='结束面试',
+        operation_description='将面试状态设置为已完成，计算总时长和实际面试时长',
+        security=[{'Bearer': []}],
+        responses={
+            200: openapi.Response('面试结束成功'),
+            400: openapi.Response('参数错误或状态不允许'),
+            401: openapi.Response('未登录'),
+            404: openapi.Response('面试记录不存在'),
+        }
+    )
+    @transaction.atomic
+    def post(self, request, interview_id):
+        interview = self._get_user_interview(request.user, interview_id)
+        if not interview:
+            return APIResponse.error(message='面试记录不存在', code=404)
+        
+        if interview.status == 'completed':
+            return APIResponse.error(message='面试已经结束', code=400)
+        
+        end_time = timezone.now()
+        total_duration = int((end_time - interview.start_time).total_seconds())
+        actual_duration = total_duration - (interview.total_pause_duration or 0)
+        
+        interview.status = 'completed'
+        interview.end_time = end_time
+        interview.duration_seconds = total_duration
+        interview.actual_duration = actual_duration
+        interview.save(update_fields=['status', 'end_time', 'duration_seconds', 'actual_duration'])
+        
+        return APIResponse.success(
+            data={
+                'interview_id': interview.id,
+                'status': interview.status,
+                'end_time': interview.end_time,
+                'total_duration': total_duration,
+                'actual_duration': actual_duration
+            },
+            message='面试已结束'
+        )

@@ -9,8 +9,16 @@ const {
   isSubmitting,
   isWaitingForQuestion,
   isInterviewEnded,
+  isPaused,
+  countdownSeconds,
+  showCountdown,
   fetchInterviewDetail,
+  startInterview,
+  pauseInterview,
+  resumeInterview,
+  endInterview,
   getNextQuestion,
+  retryGenerateQuestion,
   submitAnswer,
   startPolling,
   stopPolling,
@@ -21,32 +29,7 @@ const {
 
 const loading = ref(false)
 const error = ref('')
-const showCountdown = ref(true)
-const countdownSeconds = ref(5)
-const countdownInterval = ref<number | null>(null)
 const userAnswer = ref('')
-
-const startCountdown = () => {
-  showCountdown.value = true
-  countdownSeconds.value = 5
-  
-  countdownInterval.value = window.setInterval(() => {
-    countdownSeconds.value--
-    if (countdownSeconds.value <= 0) {
-      stopCountdown()
-      addWelcomeMessage()
-      getNextQuestion()
-    }
-  }, 1000)
-}
-
-const stopCountdown = () => {
-  if (countdownInterval.value) {
-    clearInterval(countdownInterval.value)
-    countdownInterval.value = null
-  }
-  showCountdown.value = false
-}
 
 const handleSendMessage = () => {
   if (!userAnswer.value.trim()) return
@@ -55,7 +38,6 @@ const handleSendMessage = () => {
 }
 
 const handleExit = () => {
-  stopCountdown()
   stopPolling()
   window.location.href = '/home?menu=interview'
 }
@@ -65,7 +47,8 @@ const canSubmit = computed(() => {
          userAnswer.value.trim() && 
          currentRound.value && 
          !isWaitingForQuestion.value &&
-         !isInterviewEnded.value
+         !isInterviewEnded.value &&
+         !isPaused.value
 })
 
 onMounted(async () => {
@@ -75,7 +58,16 @@ onMounted(async () => {
     if (interview.value) {
       // 加载历史消息
       await loadHistoryMessages()
-      startCountdown()
+      
+      // 根据面试状态执行不同操作
+      if (interview.value.status === 'pending') {
+        // 待开始状态，显示开始按钮
+      } else if (interview.value.status === 'in_progress') {
+        // 进行中状态，获取下一个问题
+        getNextQuestion()
+      } else if (interview.value.status === 'paused') {
+        // 已暂停状态，显示恢复按钮
+      }
     }
   } catch (err: any) {
     error.value = err.message || '加载失败'
@@ -85,7 +77,6 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  stopCountdown()
   stopPolling()
 })
 </script>
@@ -149,9 +140,42 @@ onUnmounted(() => {
           </div>
           
           <div class="sidebar-actions">
-            <button class="exit-btn" @click="handleExit">
-              退出面试
-            </button>
+            <!-- 面试控制按钮 -->
+            <div v-if="interview?.status === 'pending'" class="action-group">
+              <button class="start-btn" @click="startInterview">
+                开始面试
+              </button>
+            </div>
+            
+            <div v-else-if="interview?.status === 'in_progress'" class="action-group">
+              <button class="pause-btn" @click="pauseInterview">
+                暂停面试
+              </button>
+              <button class="end-btn" @click="endInterview">
+                结束面试
+              </button>
+            </div>
+            
+            <div v-else-if="interview?.status === 'paused'" class="action-group">
+              <button class="resume-btn" @click="resumeInterview">
+                继续面试
+              </button>
+              <button class="end-btn" @click="endInterview">
+                结束面试
+              </button>
+            </div>
+            
+            <div v-else-if="interview?.status === 'completed'" class="action-group">
+              <button class="exit-btn" @click="handleExit">
+                退出面试
+              </button>
+            </div>
+            
+            <div v-else class="action-group">
+              <button class="exit-btn" @click="handleExit">
+                退出面试
+              </button>
+            </div>
           </div>
         </div>
       </aside>
@@ -192,17 +216,26 @@ onUnmounted(() => {
               v-model="userAnswer"
               class="message-input"
               placeholder="请输入您的回答..."
-              :disabled="isSubmitting || isWaitingForQuestion || isInterviewEnded"
+              :disabled="isSubmitting || isWaitingForQuestion || isInterviewEnded || isPaused"
               rows="3"
               @keydown.enter.prevent="handleSendMessage"
             />
-            <button 
-              class="send-btn" 
-              @click="handleSendMessage"
-              :disabled="!canSubmit"
-            >
-              {{ isSubmitting ? '提交中...' : '提交回答' }}
-            </button>
+            <div class="input-buttons">
+              <button 
+                class="send-btn" 
+                @click="handleSendMessage"
+                :disabled="!canSubmit"
+              >
+                {{ isSubmitting ? '提交中...' : '提交回答' }}
+              </button>
+              <button 
+                class="retry-btn" 
+                @click="retryGenerateQuestion"
+                :disabled="isWaitingForQuestion || isInterviewEnded || isPaused || currentRound"
+              >
+                重试生成问题
+              </button>
+            </div>
           </div>
         </div>
       </main>
@@ -212,10 +245,11 @@ onUnmounted(() => {
 
 <style scoped>
 .interview-session {
-  min-height: 100vh;
+  height: 100vh;
   background: #f5f5f5;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .loading {
@@ -368,7 +402,67 @@ onUnmounted(() => {
   border-top: 1px solid #f0f0f0;
 }
 
-.exit-btn {
+.action-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.start-btn {
+  width: 100%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 1rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.start-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.pause-btn {
+  width: 100%;
+  background: #f39c12;
+  color: white;
+  border: none;
+  padding: 0.8rem;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.pause-btn:hover {
+  background: #e67e22;
+  transform: translateY(-2px);
+}
+
+.resume-btn {
+  width: 100%;
+  background: #27ae60;
+  color: white;
+  border: none;
+  padding: 0.8rem;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.resume-btn:hover {
+  background: #229954;
+  transform: translateY(-2px);
+}
+
+.end-btn {
   width: 100%;
   background: #e74c3c;
   color: white;
@@ -381,9 +475,31 @@ onUnmounted(() => {
   transition: all 0.3s ease;
 }
 
-.exit-btn:hover {
+.end-btn:hover {
   background: #c0392b;
   transform: translateY(-2px);
+}
+
+.exit-btn {
+  width: 100%;
+  background: #95a5a6;
+  color: white;
+  border: none;
+  padding: 0.8rem;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.exit-btn:hover {
+  background: #7f8c8d;
+  transform: translateY(-2px);
+}
+
+.info-value.status-paused {
+  color: #f39c12;
 }
 
 .session-main {
@@ -391,6 +507,8 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   background: #f9f9f9;
+  height: 100%;
+  overflow: hidden;
 }
 
 .chat-container {
@@ -398,6 +516,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  height: 100%;
 }
 
 .chat-messages {
@@ -407,6 +526,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  scroll-behavior: smooth;
 }
 
 .message {
@@ -512,6 +632,14 @@ onUnmounted(() => {
   display: flex;
   gap: 1rem;
   align-items: flex-end;
+  flex-shrink: 0;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.input-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
 .message-input {
@@ -555,6 +683,31 @@ onUnmounted(() => {
 }
 
 .send-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.retry-btn {
+  background: #3498db;
+  color: white;
+  border: none;
+  padding: 0.6rem 1.5rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.retry-btn:hover:not(:disabled) {
+  background: #2980b9;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(52, 152, 219, 0.4);
+}
+
+.retry-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
   transform: none;
@@ -612,7 +765,16 @@ onUnmounted(() => {
   
   .send-btn {
     padding: 0.6rem 1.5rem;
-  font-size: 0.9rem;
+    font-size: 0.9rem;
+  }
+  
+  .retry-btn {
+    padding: 0.5rem 1.2rem;
+    font-size: 0.8rem;
+  }
+  
+  .input-buttons {
+    gap: 0.3rem;
   }
 }
 </style>
