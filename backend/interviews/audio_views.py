@@ -72,6 +72,11 @@ def _run_async_transcription(audio_id: int, force_replace_answer: bool = False):
 def _enqueue_local_asr(audio_id: int, force_replace_answer: bool = False):
     _ASR_EXECUTOR.submit(_run_async_transcription, audio_id, force_replace_answer)
 
+def _enqueue_imentiv_analysis(audio_id):
+    from evaluations.tasks import analyze_imentiv_audio_task
+
+    analyze_imentiv_audio_task.delay(audio_id)
+
 
 class InterviewRoundAudioUploadView(APIView):
     permission_classes = [IsAuthenticated]
@@ -255,8 +260,18 @@ class InterviewRoundAudioUploadView(APIView):
             message = "音频上传成功"
 
         try:
+            _enqueue_imentiv_analysis(audio_obj.id)
             _enqueue_local_asr(audio_obj.id, force_replace_answer=bool(existing_audio))
         except Exception as exc:
+            audio_obj.imentiv_analysis_status = "failed"
+            audio_obj.imentiv_error_message = f"任务投递失败: {exc}"
+            audio_obj.save(
+                update_fields=[
+                    "imentiv_analysis_status",
+                    "imentiv_error_message",
+                    "updated_at",
+                ]
+            )
             audio_obj.asr_status = "failed"
             audio_obj.error_message = f"转写任务启动失败: {exc}"
             audio_obj.save(update_fields=["asr_status", "error_message", "updated_at"])
