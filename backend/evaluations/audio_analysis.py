@@ -62,7 +62,6 @@ class AudioAnalysisService:
             "asr_confidence": self._normalize_asr_confidence(asr_confidence),
             "overall_clarity": overall_clarity,
             "confidence_score": confidence_score,
-            "emotion": "",
             "filler_word_total": filler_total,
             "filler_word_counts": filler_counts,
             "rms_mean": rms_stats["mean_rms"],
@@ -91,10 +90,15 @@ class AudioAnalysisService:
 
                 for field, value in defaults.items():
                     setattr(voice_analysis, field, value)
+                # emotion 由外部情绪模型维护；仅在当前为空时保底置空
+                if not voice_analysis.emotion:
+                    voice_analysis.emotion = ""
                 voice_analysis.save()
             else:
                 voice_analysis = VoiceAnalysis.objects.create(
-                    audio=audio_obj, **defaults
+                    audio=audio_obj,
+                    emotion="",
+                    **defaults,
                 )
 
             audio_obj.analysis_status = "success"

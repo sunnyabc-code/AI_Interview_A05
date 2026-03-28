@@ -71,6 +71,12 @@ class VoiceAnalysis(models.Model):
     overall_clarity = models.FloatField(default=0, verbose_name="综合清晰度得分")
     confidence_score = models.FloatField(verbose_name="自信度得分")
     emotion = models.CharField(max_length=50, blank=True, verbose_name="情感")
+    imentiv_status = models.CharField(
+        max_length=50, blank=True, default="", verbose_name="iMentiv状态"
+    )
+    imentiv_emotion_analysis = models.JSONField(
+        default=dict, verbose_name="iMentiv情绪分析"
+    )
 
     filler_word_total = models.IntegerField(default=0, verbose_name="填充词总数")
     filler_word_counts = models.JSONField(default=dict, verbose_name="填充词明细")
