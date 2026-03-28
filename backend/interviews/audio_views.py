@@ -1,14 +1,17 @@
 import os
+from concurrent.futures import ThreadPoolExecutor
 import uuid
 
 from django.conf import settings
 from django.core.files.storage import default_storage
+from django.db import close_old_connections
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
+from core.asr_transcriber import ASRTranscriptionError, transcribe_audio_file
 from core.response import APIResponse
 from interviews.models import Interview, InterviewRound, InterviewRoundAudio
 from interviews.serializers import (
@@ -17,10 +20,57 @@ from interviews.serializers import (
 )
 
 
-def _enqueue_imentiv_analysis(audio_id):
-    from evaluations.tasks import analyze_imentiv_audio_task
+_ASR_EXECUTOR = ThreadPoolExecutor(max_workers=2, thread_name_prefix="asr-worker")
 
-    analyze_imentiv_audio_task.delay(audio_id)
+
+def _run_async_transcription(audio_id: int, force_replace_answer: bool = False):
+    # 后台线程单独管理数据库连接，避免复用已关闭连接。
+    close_old_connections()
+    try:
+        audio_obj = InterviewRoundAudio.objects.select_related("round").get(id=audio_id)
+    except InterviewRoundAudio.DoesNotExist:
+        close_old_connections()
+        return
+
+    audio_obj.asr_status = "running"
+    audio_obj.error_message = ""
+    audio_obj.save(update_fields=["asr_status", "error_message", "updated_at"])
+
+    try:
+        transcript, _ = transcribe_audio_file(
+            audio_obj.file_key,
+            language=getattr(settings, "ASR_LANGUAGE", "zh"),
+        )
+    except ASRTranscriptionError as exc:
+        audio_obj.asr_status = "failed"
+        audio_obj.error_message = str(exc)
+        audio_obj.save(update_fields=["asr_status", "error_message", "updated_at"])
+        close_old_connections()
+        return
+
+    if not transcript:
+        # 业务要求：空转写视为正常，不作为异常。
+        audio_obj.asr_status = "success"
+        audio_obj.error_message = ""
+        audio_obj.save(update_fields=["asr_status", "error_message", "updated_at"])
+        close_old_connections()
+        return
+
+    round_obj = audio_obj.round
+    current_answer = (round_obj.user_answer or "").strip()
+    should_replace_answer = force_replace_answer or (not current_answer or current_answer == "1")
+    if should_replace_answer:
+        round_obj.user_answer = transcript
+        round_obj.save(update_fields=["user_answer"])
+
+    audio_obj.asr_status = "success"
+    audio_obj.error_message = ""
+    audio_obj.save(update_fields=["asr_status", "error_message", "updated_at"])
+    close_old_connections()
+
+
+def _enqueue_local_asr(audio_id: int, force_replace_answer: bool = False):
+    _ASR_EXECUTOR.submit(_run_async_transcription, audio_id, force_replace_answer)
 
 
 class InterviewRoundAudioUploadView(APIView):
@@ -49,6 +99,7 @@ class InterviewRoundAudioUploadView(APIView):
             "analysis_status": audio_obj.analysis_status,
             "imentiv_analysis_status": audio_obj.imentiv_analysis_status,
             "imentiv_error_message": audio_obj.imentiv_error_message,
+            "transcript": (round_obj.user_answer or "").strip(),
             "created_at": audio_obj.created_at,
             "updated_at": audio_obj.updated_at,
         }
@@ -204,21 +255,20 @@ class InterviewRoundAudioUploadView(APIView):
             message = "音频上传成功"
 
         try:
-            _enqueue_imentiv_analysis(audio_obj.id)
+            _enqueue_local_asr(audio_obj.id, force_replace_answer=bool(existing_audio))
         except Exception as exc:
-            audio_obj.imentiv_analysis_status = "failed"
-            audio_obj.imentiv_error_message = f"任务投递失败: {exc}"
-            audio_obj.save(
-                update_fields=[
-                    "imentiv_analysis_status",
-                    "imentiv_error_message",
-                    "updated_at",
-                ]
+            audio_obj.asr_status = "failed"
+            audio_obj.error_message = f"转写任务启动失败: {exc}"
+            audio_obj.save(update_fields=["asr_status", "error_message", "updated_at"])
+            return APIResponse.error(
+                message="音频上传成功，但转写任务启动失败",
+                code=500,
+                errors={"detail": str(exc), "audio_id": audio_obj.id},
             )
 
         return APIResponse.success(
             data=self._build_audio_response(interview, round_obj, audio_obj),
-            message=message,
+            message=f"{message}，转写处理中",
             code=status_code,
         )
 

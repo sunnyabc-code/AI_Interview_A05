@@ -547,6 +547,14 @@ class InterviewRoundAnswerView(APIView):
         if not answer_text:
             return APIResponse.error(message='回答内容不能为空', code=400)
 
+        existing_answer = (round_obj.user_answer or '').strip()
+        incoming_is_placeholder = answer_text == '1'
+        existing_is_real_text = bool(existing_answer) and existing_answer != '1'
+
+        # 语音上传已回填 transcript 时，前端后续提交占位值不应覆盖真实文本。
+        if incoming_is_placeholder and existing_is_real_text:
+            answer_text = existing_answer
+
         # 检查是否已回答
         already_answered = bool((round_obj.user_answer or '').strip()) and round_obj.end_time is not None
         

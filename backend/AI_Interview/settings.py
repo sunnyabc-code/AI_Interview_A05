@@ -244,3 +244,26 @@ CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TIMEZONE = TIME_ZONE
+
+# 本地 ASR 配置
+ASR_LANGUAGE = os.getenv("ASR_LANGUAGE", "zh")
+ASR_MODEL_SIZE = os.getenv("ASR_MODEL_SIZE", "small")
+ASR_BEAM_SIZE = int(os.getenv("ASR_BEAM_SIZE", "5"))
+ASR_DEVICE = os.getenv("ASR_DEVICE", "cpu")
+ASR_COMPUTE_TYPE = os.getenv("ASR_COMPUTE_TYPE", "int8")
+ASR_FORCE_SIMPLIFIED = os.getenv("ASR_FORCE_SIMPLIFIED", "true").lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
+ASR_PREPROCESS_ENABLED = os.getenv("ASR_PREPROCESS_ENABLED", "true").lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
+ASR_TARGET_SR = int(os.getenv("ASR_TARGET_SR", "16000"))
+ASR_TRIM_TOP_DB = float(os.getenv("ASR_TRIM_TOP_DB", "30"))
+ASR_NOISE_REDUCE_STRENGTH = float(os.getenv("ASR_NOISE_REDUCE_STRENGTH", "1.4"))
+ASR_TARGET_RMS = float(os.getenv("ASR_TARGET_RMS", "0.08"))

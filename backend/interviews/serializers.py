@@ -232,5 +232,6 @@ class InterviewRoundAudioUploadResponseSerializer(serializers.Serializer):
     analysis_status = serializers.CharField()
     imentiv_analysis_status = serializers.CharField()
     imentiv_error_message = serializers.CharField(allow_blank=True)
+    transcript = serializers.CharField(allow_blank=True, required=False)
     created_at = serializers.DateTimeField()
     updated_at = serializers.DateTimeField()
