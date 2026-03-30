@@ -27,8 +27,6 @@ class VoiceAnalysisAdmin(admin.ModelAdmin):
         "audio",
         "speech_rate",
         "audio_clarity_score",
-        "asr_confidence",
-        "overall_clarity",
         "confidence_score",
         "filler_word_total",
         "rms_cv",

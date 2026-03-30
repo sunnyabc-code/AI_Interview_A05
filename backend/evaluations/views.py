@@ -68,9 +68,6 @@ class VoiceAnalysisRunView(APIView):
                     type=openapi.TYPE_STRING,
                     description="ASR转写文本，可选；为空时默认使用轮次 user_answer",
                 ),
-                "asr_confidence": openapi.Schema(
-                    type=openapi.TYPE_NUMBER, description="ASR置信度，范围0~1，可选"
-                ),
             },
         ),
         security=[{"Bearer": []}],
@@ -79,18 +76,6 @@ class VoiceAnalysisRunView(APIView):
     def post(self, request):
         audio_id = request.data.get("audio_id")
         transcript = (request.data.get("transcript") or "").strip()
-        asr_confidence = request.data.get("asr_confidence")
-
-        if asr_confidence is not None:
-            try:
-                asr_confidence = float(asr_confidence)
-            except (TypeError, ValueError):
-                return APIResponse.error(message="asr_confidence 必须是数字", code=400)
-
-            if asr_confidence < 0 or asr_confidence > 1:
-                return APIResponse.error(
-                    message="asr_confidence 必须在 0~1 范围内", code=400
-                )
 
         if not audio_id:
             return APIResponse.error(message="audio_id 不能为空", code=400)
@@ -121,7 +106,6 @@ class VoiceAnalysisRunView(APIView):
             voice_analysis = service.analyze_and_save(
                 audio_obj,
                 transcript=transcript,
-                asr_confidence=asr_confidence,
             )
         except AudioAnalysisError as exc:
             mark_audio_analysis_failed(audio_obj, str(exc))
@@ -142,8 +126,6 @@ class VoiceAnalysisRunView(APIView):
                 "duration_seconds": voice_analysis.duration_seconds,
                 "speech_rate": voice_analysis.speech_rate,
                 "audio_clarity_score": voice_analysis.audio_clarity_score,
-                "asr_confidence": voice_analysis.asr_confidence,
-                "overall_clarity": voice_analysis.overall_clarity,
                 "confidence_score": voice_analysis.confidence_score,
                 "filler_word_total": voice_analysis.filler_word_total,
                 "filler_word_counts": voice_analysis.filler_word_counts,

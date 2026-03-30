@@ -22,7 +22,7 @@ class AudioAnalysisService:
     def __init__(self, vad_mode=2):
         self.vad = webrtcvad.Vad(vad_mode)
 
-    def analyze_and_save(self, audio_obj, transcript="", asr_confidence=None):
+    def analyze_and_save(self, audio_obj, transcript=""):
         transcript = (transcript or "").strip()
 
         y, sr = self._load_audio_from_storage(audio_obj.file_key)
@@ -49,25 +49,27 @@ class AudioAnalysisService:
             silence_ratio=silence_stats["silence_ratio"],
             rms_cv=rms_stats["cv_rms"],
         )
-        overall_clarity = self._compute_overall_clarity(
-            audio_clarity_score, asr_confidence
+
+        silence_ratio_level = self._compute_silence_level(
+            silence_stats["silence_ratio"]
         )
+        speech_rate_level = self._compute_speech_rate_level(speech_rate)
 
         defaults = {
             "round": audio_obj.round,
             "status": "success",
             "duration_seconds": duration_seconds,
             "speech_rate": speech_rate,
+            "speech_rate_level": speech_rate_level,
             "audio_clarity_score": audio_clarity_score,
-            "asr_confidence": self._normalize_asr_confidence(asr_confidence),
-            "overall_clarity": overall_clarity,
             "confidence_score": confidence_score,
+            "silence_ratio": silence_stats["silence_ratio"],
+            "silence_ratio_level": silence_ratio_level,
             "filler_word_total": filler_total,
             "filler_word_counts": filler_counts,
             "rms_mean": rms_stats["mean_rms"],
             "rms_std": rms_stats["std_rms"],
             "rms_cv": rms_stats["cv_rms"],
-            "silence_ratio": silence_stats["silence_ratio"],
             "voiced_frames": silence_stats["voiced_frames"],
             "total_frames": silence_stats["total_frames"],
         }
@@ -209,12 +211,28 @@ class AudioAnalysisService:
             "total_frames": total_frames,
         }
 
+    def _compute_silence_level(self, silence_ratio):
+        if silence_ratio <= 0.15:
+            return "fluent"
+        if silence_ratio <= 0.25:
+            return "good"
+        if silence_ratio <= 0.35:
+            return "medium"
+        return "poor"
+
     def _compute_speech_rate(self, transcript, duration_seconds):
         clean_text = re.sub(r"\s+", "", transcript or "")
         if duration_seconds <= 0:
             return 0.0
         chars_per_minute = (len(clean_text) / duration_seconds) * 60
         return round(float(chars_per_minute), 2)
+
+    def _compute_speech_rate_level(self, speech_rate):
+        if speech_rate < 180:
+            return "slow"
+        if speech_rate <= 260:
+            return "normal"
+        return "fast"
 
     def _compute_confidence_score(
         self, filler_total, transcript, silence_ratio, rms_mean, rms_cv
@@ -252,19 +270,6 @@ class AudioAnalysisService:
 
         clarity = 0.45 * rate_score + 0.30 * pause_score + 0.25 * stability_score
         return round(max(0.0, min(100.0, clarity)), 2)
-
-    def _normalize_asr_confidence(self, asr_confidence):
-        if asr_confidence is None:
-            return 0.0
-        return round(max(0.0, min(1.0, float(asr_confidence))), 6)
-
-    def _compute_overall_clarity(self, audio_clarity_score, asr_confidence):
-        if asr_confidence is None:
-            return round(float(audio_clarity_score), 2)
-
-        normalized_asr = self._normalize_asr_confidence(asr_confidence) * 100.0
-        overall = 0.5 * float(audio_clarity_score) + 0.5 * normalized_asr
-        return round(max(0.0, min(100.0, overall)), 2)
 
 
 def mark_audio_analysis_failed(audio_obj, message):
