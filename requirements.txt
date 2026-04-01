@@ -1,0 +1,27 @@
+# AI_Interview_A05 Python dependencies
+# Frontend dependencies are managed by npm in frontend/package.json.
+
+# Core backend
+Django==5.2.12
+djangorestframework>=3.15,<4.0
+django-cors-headers>=4.4,<5.0
+drf-yasg>=1.21,<2.0
+djangorestframework-simplejwt>=5.3,<6.0
+
+# Database
+PyMySQL>=1.1,<2.0
+cryptography>=42,<44
+
+# Async tasks
+celery>=5.4,<6.0
+redis>=5.0,<6.0
+
+# Audio / ASR / analysis
+numpy>=1.26,<3.0
+scipy>=1.12,<2.0
+librosa>=0.10,<1.0
+opencc-python-reimplemented>=0.1.7,<1.0
+faster-whisper>=1.0,<2.0
+openai-whisper>=20231117
+webrtcvad-wheels>=2.0.14
+
