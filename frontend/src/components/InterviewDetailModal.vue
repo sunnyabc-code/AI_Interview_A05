@@ -71,6 +71,7 @@ const statusText = (status: string) => {
   const statusMap: Record<string, string> = {
     pending: '待开始',
     in_progress: '进行中',
+    paused: '已暂停',
     completed: '已完成',
     cancelled: '已取消'
   }
@@ -185,7 +186,7 @@ onMounted(() => {
           开始面试
         </button>
         <button 
-          v-if="interview && interview.status === 'in_progress'" 
+          v-if="interview && (interview.status === 'in_progress' || interview.status === 'paused')" 
           class="start-btn" 
           @click="handleStart"
         >

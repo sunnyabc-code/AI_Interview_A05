@@ -25,6 +25,12 @@ const router = createRouter({
       component: () => import('../views/InterviewSessionView.vue'),
       meta: { requiresAuth: true }
     },
+    {
+      path: '/interview/voice/:id',
+      name: 'interview-voice-session',
+      component: () => import('../views/RealtimeVoiceInterviewView.vue'),
+      meta: { requiresAuth: true }
+    },
   ],
 })
 

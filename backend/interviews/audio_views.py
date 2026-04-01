@@ -259,9 +259,10 @@ class InterviewRoundAudioUploadView(APIView):
             status_code = 201
             message = "音频上传成功"
 
+        warning_messages = []
+
         try:
             _enqueue_imentiv_analysis(audio_obj.id)
-            _enqueue_local_asr(audio_obj.id, force_replace_answer=bool(existing_audio))
         except Exception as exc:
             audio_obj.imentiv_analysis_status = "failed"
             audio_obj.imentiv_error_message = f"任务投递失败: {exc}"
@@ -272,18 +273,22 @@ class InterviewRoundAudioUploadView(APIView):
                     "updated_at",
                 ]
             )
-            audio_obj.asr_status = "failed"
-            audio_obj.error_message = f"转写任务启动失败: {exc}"
-            audio_obj.save(update_fields=["asr_status", "error_message", "updated_at"])
-            return APIResponse.error(
-                message="音频上传成功，但转写任务启动失败",
-                code=500,
-                errors={"detail": str(exc), "audio_id": audio_obj.id},
-            )
+            warning_messages.append("iMentiv任务投递失败")
+
+        try:
+            _enqueue_local_asr(audio_obj.id, force_replace_answer=bool(existing_audio))
+        except Exception as exc:
+            # 兜底策略：线程池投递失败时同步执行一次转写，避免前端因为500中断流程。
+            warning_messages.append(f"ASR异步任务投递失败，已降级为同步转写: {exc}")
+            _run_async_transcription(audio_obj.id, force_replace_answer=bool(existing_audio))
+
+        response_message = f"{message}，转写处理中"
+        if warning_messages:
+            response_message = f"{message}，{'; '.join(warning_messages)}"
 
         return APIResponse.success(
             data=self._build_audio_response(interview, round_obj, audio_obj),
-            message=f"{message}，转写处理中",
+            message=response_message,
             code=status_code,
         )
 
