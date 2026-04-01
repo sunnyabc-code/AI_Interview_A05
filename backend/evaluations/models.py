@@ -66,9 +66,19 @@ class VoiceAnalysis(models.Model):
 
     duration_seconds = models.FloatField(verbose_name="时长(秒)")
     speech_rate = models.FloatField(verbose_name="语速(字/分钟)")
+    SPEECH_RATE_LEVEL_CHOICES = [
+        ("slow", "慢"),
+        ("normal", "正常"),
+        ("fast", "快"),
+    ]
+    speech_rate_level = models.CharField(
+        max_length=8,
+        choices=SPEECH_RATE_LEVEL_CHOICES,
+        default="normal",
+        verbose_name="语速评价（慢/正常/快）",
+        help_text="根据speech_rate自动划分：慢(<180)，正常(180-260)，快(>260)",
+    )
     audio_clarity_score = models.FloatField(verbose_name="音频清晰度得分")
-    asr_confidence = models.FloatField(default=0, verbose_name="ASR置信度")
-    overall_clarity = models.FloatField(default=0, verbose_name="综合清晰度得分")
     confidence_score = models.FloatField(verbose_name="自信度得分")
     emotion = models.CharField(max_length=50, blank=True, verbose_name="情感")
     imentiv_status = models.CharField(
@@ -84,6 +94,19 @@ class VoiceAnalysis(models.Model):
     rms_std = models.FloatField(default=0, verbose_name="RMS标准差")
     rms_cv = models.FloatField(default=0, verbose_name="RMS变异系数")
     silence_ratio = models.FloatField(default=0, verbose_name="无声占比")
+    SILENCE_RATIO_LEVEL_CHOICES = [
+        ("fluent", "流利"),
+        ("good", "良好"),
+        ("medium", "中等偏下"),
+        ("poor", "较差"),
+    ]
+    silence_ratio_level = models.CharField(
+        max_length=12,
+        choices=SILENCE_RATIO_LEVEL_CHOICES,
+        default="good",
+        verbose_name="静音比例评价",
+        help_text="依据silence_ratio自动划分：流利(<=0.15)，良好(<=0.25)，中等偏下(<=0.35)，较差(>0.35)",
+    )
     voiced_frames = models.IntegerField(default=0, verbose_name="有声帧数")
     total_frames = models.IntegerField(default=0, verbose_name="总帧数")
 

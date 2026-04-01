@@ -136,8 +136,6 @@ class ImentivAnalysisService:
                 "duration_seconds": float(audio_obj.duration_seconds or 0),
                 "speech_rate": 0,
                 "audio_clarity_score": 0,
-                "asr_confidence": 0,
-                "overall_clarity": 0,
                 "confidence_score": 0,
                 "emotion": emotion,
                 "imentiv_status": imentiv_status,
