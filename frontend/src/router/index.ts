@@ -28,6 +28,12 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
+      path: '/interview/voice/:id',
+      name: 'interview-voice-session',
+      component: () => import('../views/RealtimeVoiceInterviewView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
       path: '/evaluation',
       name: 'evaluation',
       redirect: '/home?menu=evaluation',

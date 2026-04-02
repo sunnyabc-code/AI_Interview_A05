@@ -8,7 +8,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  close: []
+  (e: 'close', createdInterview?: any): void
 }>()
 
 const form = ref({
@@ -119,7 +119,7 @@ const handleSubmit = async () => {
     if (data.code === 201 || data.code === 200) {
       success.value = '创建成功'
       setTimeout(() => {
-        emit('close')
+        emit('close', data.data || null)
         resetForm()
       }, 1500)
     } else {

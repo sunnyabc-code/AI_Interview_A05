@@ -27,6 +27,7 @@ const cancelDelete = () => {
 const statusColorMap: Record<string, string> = {
   pending: '#999',
   in_progress: '#3498db',
+  paused: '#f39c12',
   completed: '#27ae60',
   cancelled: '#e74c3c'
 }
@@ -34,6 +35,7 @@ const statusColorMap: Record<string, string> = {
 const statusTextMap: Record<string, string> = {
   pending: '待开始',
   in_progress: '进行中',
+  paused: '已暂停',
   completed: '已完成',
   cancelled: '已取消'
 }

@@ -27,6 +27,14 @@ const showToast = ref(false)
 
 const API_BASE_URL = 'http://localhost:8000'
 
+const getInterviewRoute = (interview: any) => {
+  if (interview?.mode === 'voice') {
+    return `/interview/voice/${interview.id}`
+  }
+
+  return `/interview/${interview.id}`
+}
+
 const getAuthHeaders = () => {
   const token = localStorage.getItem('access_token')
   return {
@@ -69,10 +77,14 @@ const handleCreateInterview = () => {
   showCreateModal.value = true
 }
 
-const handleModalClose = () => {
+const handleModalClose = (createdInterview?: any) => {
   showCreateModal.value = false
   fetchInterviews()
   emit('update')
+
+  if (createdInterview?.id) {
+    router.push(getInterviewRoute(createdInterview))
+  }
 }
 
 const handleInterviewCardClick = (interview: any) => {
@@ -86,17 +98,34 @@ const handleDetailModalClose = () => {
 
 const handleStartInterview = async (interview: any) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/v1/interviews/${interview.id}/`, {
-      method: 'PATCH',
+    // 已在进行中的面试直接进入页面。
+    if (interview.status === 'in_progress') {
+      showDetailModal.value = false
+      router.push(getInterviewRoute(interview))
+      return
+    }
+
+    let endpoint = `${API_BASE_URL}/api/v1/interviews/${interview.id}/start/`
+    if (interview.status === 'paused') {
+      endpoint = `${API_BASE_URL}/api/v1/interviews/${interview.id}/resume/`
+    }
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
       headers: getAuthHeaders(),
-      body: JSON.stringify({ status: 'in_progress' })
+      body: JSON.stringify({})
     })
     
     if (response.ok) {
       const data = await response.json()
       if (data.code === 200) {
         showDetailModal.value = false
-        router.push(`/interview/${interview.id}`)
+        const routeInterview = {
+          ...interview,
+          ...(data.data || {}),
+          status: 'in_progress',
+        }
+        router.push(getInterviewRoute(routeInterview))
       } else {
         alert(data.message || '开始面试失败')
       }
@@ -196,7 +225,7 @@ onMounted(() => {
     <InterviewModal :show="showCreateModal" @close="handleModalClose" />
     <InterviewDetailModal 
       :show="showDetailModal" 
-      :interview-id="selectedInterview?.id || null"
+      :interview-id="selectedInterview ? selectedInterview.id : null"
       @close="handleDetailModalClose"
       @start="handleStartInterview"
     />
