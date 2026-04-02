@@ -5,8 +5,8 @@ from drf_yasg import openapi
 from django.db import transaction
 
 from core.response import APIResponse
-from evaluations.models import DifficultyConfig
-from interviews.models import InterviewRoundAudio
+from evaluations.models import DifficultyConfig, VoiceAnalysis
+from interviews.models import InterviewRoundAudio, InterviewRound
 from evaluations.tasks import analyze_imentiv_audio_task
 
 from evaluations.audio_analysis import (
@@ -269,6 +269,103 @@ class ImentivAnalysisStatusView(APIView):
                 ),
                 "updated_at": audio_obj.updated_at,
             },
+            message="查询成功",
+            code=200,
+        )
+
+
+class RoundAudioAnalysisView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        tags=["Evaluation"],
+        operation_summary="获取轮次音频分析结果",
+        operation_description="根据轮次ID获取该轮的音频分析结果，包括语音分析和情感分析。",
+        security=[{"Bearer": []}],
+        responses={200: openapi.Response("查询成功")},
+    )
+    def get(self, request, round_id):
+        try:
+            round_obj = InterviewRound.objects.select_related("interview").get(
+                id=round_id,
+                interview__user=request.user,
+            )
+        except InterviewRound.DoesNotExist:
+            return APIResponse.error(message="轮次不存在或无权限", code=404)
+
+        # 获取该轮次的音频
+        try:
+            audio = InterviewRoundAudio.objects.select_related("voice_analysis").get(
+                round_id=round_id
+            )
+        except InterviewRoundAudio.DoesNotExist:
+            return APIResponse.success(
+                data={
+                    "round_id": round_obj.id,
+                    "interview_id": round_obj.interview_id,
+                    "round_number": round_obj.round_number,
+                    "category": round_obj.category.name if round_obj.category else None,
+                    "question_content": round_obj.question_content,
+                    "user_answer": round_obj.user_answer,
+                    "audio_data": None,
+                },
+                message="轮次音频不存在",
+                code=200,
+            )
+
+        voice_analysis = getattr(audio, "voice_analysis", None)
+
+        audio_data = {
+            "audio_id": audio.id,
+            "file_url": audio.file_url,
+            "file_name": audio.file_name,
+            "file_size_bytes": audio.file_size_bytes,
+            "duration_seconds": audio.duration_seconds,
+            "upload_status": audio.upload_status,
+            "asr_status": audio.asr_status,
+            "analysis_status": audio.analysis_status,
+            "error_message": audio.error_message,
+            "imentiv_analysis_status": audio.imentiv_analysis_status,
+            "imentiv_error_message": audio.imentiv_error_message,
+            "voice_analysis": None,
+        }
+
+        if voice_analysis:
+            audio_data["voice_analysis"] = {
+                "voice_analysis_id": voice_analysis.id,
+                "duration_seconds": voice_analysis.duration_seconds,
+                "speech_rate": voice_analysis.speech_rate,
+                "speech_rate_level": voice_analysis.speech_rate_level,
+                "audio_clarity_score": voice_analysis.audio_clarity_score,
+                "confidence_score": voice_analysis.confidence_score,
+                "emotion": voice_analysis.emotion,
+                "imentiv_status": voice_analysis.imentiv_status,
+                "imentiv_emotion_analysis": voice_analysis.imentiv_emotion_analysis,
+                "filler_word_total": voice_analysis.filler_word_total,
+                "filler_word_counts": voice_analysis.filler_word_counts,
+                "rms_mean": voice_analysis.rms_mean,
+                "rms_std": voice_analysis.rms_std,
+                "rms_cv": voice_analysis.rms_cv,
+                "silence_ratio": voice_analysis.silence_ratio,
+                "silence_ratio_level": voice_analysis.silence_ratio_level,
+                "voiced_frames": voice_analysis.voiced_frames,
+                "total_frames": voice_analysis.total_frames,
+                "created_at": voice_analysis.created_at,
+                "updated_at": voice_analysis.updated_at,
+            }
+
+        round_data = {
+            "round_id": round_obj.id,
+            "interview_id": round_obj.interview_id,
+            "round_number": round_obj.round_number,
+            "category": round_obj.category.name if round_obj.category else None,
+            "question_content": round_obj.question_content,
+            "user_answer": round_obj.user_answer,
+            "audio_data": audio_data,
+        }
+
+        return APIResponse.success(
+            data=round_data,
             message="查询成功",
             code=200,
         )

@@ -1,23 +1,33 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import ProfileView from './ProfileView.vue'
 import InterviewView from './InterviewView.vue'
+import EvaluationView from './EvaluationView.vue'
 
 const router = useRouter()
+const route = useRoute()
 const user = ref(JSON.parse(localStorage.getItem('user') || '{}'))
 const activeMenu = ref(localStorage.getItem('activeMenu') || 'home')
 
 const menuItems = [
   { id: 'home', label: '首页' },
   { id: 'interview', label: '面试' },
+  { id: 'evaluation', label: '评估' },
   { id: 'history', label: '历史记录' },
   { id: 'profile', label: '个人中心' }
 ]
 
+const validMenuIds = menuItems.map(item => item.id)
+
+const setActiveMenu = (menuId: string) => {
+  const nextMenu = validMenuIds.includes(menuId) ? menuId : 'home'
+  activeMenu.value = nextMenu
+  localStorage.setItem('activeMenu', nextMenu)
+}
+
 const handleMenuClick = (menuId: string) => {
-  activeMenu.value = menuId
-  localStorage.setItem('activeMenu', menuId)
+  setActiveMenu(menuId)
 }
 
 const handleLogout = () => {
@@ -31,6 +41,12 @@ onMounted(() => {
   const token = localStorage.getItem('access_token')
   if (!token) {
     router.push('/auth')
+    return
+  }
+
+  const menuFromQuery = typeof route.query.menu === 'string' ? route.query.menu : ''
+  if (menuFromQuery) {
+    setActiveMenu(menuFromQuery)
   }
 })
 </script>
@@ -41,18 +57,14 @@ onMounted(() => {
       <div class="header-left">
         <h1 class="platform-name">AI面试平台</h1>
       </div>
-      
+
       <nav class="header-menu">
-        <button 
-          v-for="item in menuItems"
-          :key="item.id"
-          :class="['menu-item', { active: activeMenu === item.id }]"
-          @click="handleMenuClick(item.id)"
-        >
+        <button v-for="item in menuItems" :key="item.id" :class="['menu-item', { active: activeMenu === item.id }]"
+          @click="handleMenuClick(item.id)">
           {{ item.label }}
         </button>
       </nav>
-      
+
       <div class="header-right">
         <button class="profile-btn" @click="handleMenuClick('profile')">
           {{ user.username }}
@@ -60,22 +72,26 @@ onMounted(() => {
         <button class="logout-btn" @click="handleLogout">退出</button>
       </div>
     </header>
-    
+
     <main class="main-content">
       <div v-if="activeMenu === 'home'" class="content-area">
         <h2>欢迎来到AI面试平台</h2>
         <p>请选择上方菜单开始您的面试之旅</p>
       </div>
-      
+
       <div v-if="activeMenu === 'interview'" class="content-area">
         <InterviewView :active="true" />
       </div>
-      
+
+      <div v-if="activeMenu === 'evaluation'" class="content-area">
+        <EvaluationView />
+      </div>
+
       <div v-if="activeMenu === 'history'" class="content-area">
         <h2>历史记录</h2>
         <p>历史记录功能正在开发中...</p>
       </div>
-      
+
       <div v-if="activeMenu === 'profile'" class="content-area">
         <ProfileView />
       </div>
@@ -230,7 +246,7 @@ onMounted(() => {
     padding: 1rem;
     gap: 1rem;
   }
-  
+
   .header-menu {
     order: 3;
     max-width: 100%;
@@ -238,20 +254,20 @@ onMounted(() => {
     flex-wrap: wrap;
     justify-content: center;
   }
-  
+
   .menu-item {
     padding: 0.5rem 1rem;
     font-size: 0.9rem;
   }
-  
+
   .header-right {
     order: 2;
   }
-  
+
   .main-content {
     padding: 1rem;
   }
-  
+
   .content-area {
     padding: 1.5rem;
   }
