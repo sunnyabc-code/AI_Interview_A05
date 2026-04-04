@@ -227,6 +227,25 @@ const sceneStatusText = computed(() => {
   }
   return map[sceneStatus.value]
 })
+const currentRoundLabel = computed(() => {
+  return currentRoundNumber.value ? `第 ${currentRoundNumber.value} 轮` : '等待生成'
+})
+const interviewerWaveBars = computed(() => {
+  const baseBars = isSpeaking.value ? [16, 24, 20, 28, 18] : [10, 14, 12, 15, 11]
+  const boost = isSpeaking.value ? Math.min(8, Math.max(0, Math.round(currentText.value.length / 12))) : 0
+
+  return baseBars.map((height, index) => Math.min(40, height + boost + (isSpeaking.value ? index % 2 * 2 : 0)))
+})
+const candidateWaveBars = computed(() => {
+  const active = candidateWaveActive.value
+  const intensity = active ? Math.max(0.35, Math.min(1.1, endDetector.recentRms.value * 10)) : 0
+  const idleBars = [8, 12, 10, 14, 9]
+
+  return idleBars.map((height, index) => {
+    const gain = active ? Math.round((10 + index * 3) * intensity) : 0
+    return Math.min(40, height + gain)
+  })
+})
 const candidateWaveActive = computed(() => {
   return recordingState.value === 'recording' && endDetector.recentRms.value > endDetector.volumeThreshold
 })
@@ -575,16 +594,6 @@ const playQuestion = async () => {
   }
 }
 
-const ensureInterviewStarted = async () => {
-  if (!interviewId.value) return
-  if (interview.value?.status && interview.value.status !== 'pending') return
-
-  const data = await postJson(`${API_BASE_URL}/api/v1/interviews/${interviewId.value}/start/`)
-  if (interview.value) {
-    interview.value = { ...interview.value, ...data.data }
-  }
-}
-
 const fetchNextQuestion = async () => {
   if (!interviewId.value) return false
 
@@ -634,23 +643,6 @@ const toggleTTSSwitch = () => {
 const stopBroadcast = () => {
   stopSpeaking()
   addLog('手动停止播报。')
-}
-
-const runRoundDemo = async () => {
-  if (recordingState.value === 'recording') {
-    stopRecording('manual')
-  }
-
-  try {
-    await ensureInterviewStarted()
-    const ok = await fetchNextQuestion()
-    if (!ok) return
-  } catch (err) {
-    addLog(`启动回合失败: ${errorMessage(err)}`)
-    return
-  }
-
-  await playQuestion()
 }
 
 const manualStopAnswer = () => {
@@ -814,52 +806,103 @@ loadInterviewInfo()
 
 <template>
   <div class="voice-page">
-    <header class="top-status-bar">
-      <button class="back-btn" @click="handleBack">返回面试列表</button>
-      <div class="status-chip"><span class="k">面试</span><strong>{{ interviewNameText }}</strong></div>
-      <div class="status-chip"><span class="k">轮次</span><strong>第 {{ currentRoundNumber }} 轮</strong></div>
-      <div class="status-chip"><span class="k">剩余答题</span><strong>{{ remainingAnswerSecondsText }}</strong></div>
-      <div class="status-chip"><span class="k">网络</span><strong>{{ networkStatusText }}</strong></div>
-      <div class="status-chip"><span class="k">麦克风</span><strong>{{ micStatusText }}</strong></div>
-      <div class="scene-light" :class="sceneStatus">
-        <span class="dot"></span>
-        <span>{{ sceneStatusText }}</span>
+    <aside class="voice-sidebar">
+      <div class="sidebar-hero">
+        <div class="sidebar-hero-top">
+          <button class="back-btn" @click="handleBack">返回面试列表</button>
+          <div class="scene-light" :class="sceneStatus">
+            <span class="dot"></span>
+            <span>{{ sceneStatusText }}</span>
+          </div>
+        </div>
+        <div>
+          <p class="eyebrow">语音面试</p>
+          <h1 class="sidebar-title">{{ interviewNameText }}</h1>
+          <p class="sidebar-subtitle">{{ interviewPositionText }}</p>
+        </div>
       </div>
-    </header>
 
-    <section class="main-stage">
-      <article class="role-card interviewer">
-        <div class="role-head">
-          <div class="avatar">AI</div>
-          <div>
-            <h3>面试官</h3>
-            <p>{{ interviewPositionText }}</p>
+      <section class="voice-card sidebar-card">
+        <div class="card-title-row">
+          <h2>面试状态</h2>
+          <span class="mini-badge">{{ interviewStatusText }}</span>
+        </div>
+        <div class="status-grid">
+          <div class="status-item">
+            <span class="status-label">当前轮次</span>
+            <strong>{{ currentRoundLabel }}</strong>
+          </div>
+          <div class="status-item">
+            <span class="status-label">总轮次</span>
+            <strong>{{ interview?.total_rounds || 0 }} 轮</strong>
+          </div>
+          <div class="status-item">
+            <span class="status-label">剩余答题</span>
+            <strong>{{ remainingAnswerSecondsText }}</strong>
+          </div>
+          <div class="status-item">
+            <span class="status-label">网络</span>
+            <strong>{{ networkStatusText }}</strong>
+          </div>
+          <div class="status-item">
+            <span class="status-label">麦克风</span>
+            <strong>{{ micStatusText }}</strong>
+          </div>
+          <div class="status-item">
+            <span class="status-label">题目播报</span>
+            <strong>{{ ttsEnabled ? '开启' : '关闭' }}</strong>
           </div>
         </div>
-        <div class="wave" :class="{ active: isSpeaking }">
-          <span></span><span></span><span></span><span></span><span></span>
-        </div>
-        <p class="role-tip">{{ isSpeaking ? '正在语音播报问题...' : '等待播报' }}</p>
-      </article>
+      </section>
 
-      <article class="role-card candidate">
-        <div class="role-head">
-          <div class="avatar me">你</div>
-          <div>
-            <h3>候选人</h3>
-            <p>{{ interviewStatusText }}</p>
+      <section class="voice-card sidebar-card">
+        <div class="card-title-row">
+          <h2>快捷操作</h2>
+          <span class="mini-badge">{{ isPaused ? '已暂停' : '进行中' }}</span>
+        </div>
+        <div class="sidebar-actions">
+          <button class="btn primary" @click="pauseInterview">{{ isPaused ? '继续面试' : '暂停面试' }}</button>
+          <button class="btn danger" @click="endInterview">结束面试</button>
+<!--           <button class="btn secondary" :disabled="!currentText" @click="replayQuestion">重听问题</button>
+          <button class="btn secondary" :disabled="!supportsTTS() || isSpeaking" @click="playQuestion">播报题目</button> -->
+        </div>
+      </section>
+    </aside>
+
+    <main class="voice-content">
+      <section class="main-stage">
+        <article class="role-card interviewer">
+          <div class="role-head">
+            <div class="avatar interviewer-avatar">AI</div>
+            <div>
+              <h3>面试官</h3>
+              <p>{{ interviewPositionText }}</p>
+            </div>
           </div>
-        </div>
-        <div class="wave" :class="{ active: candidateWaveActive }">
-          <span></span><span></span><span></span><span></span><span></span>
-        </div>
-        <p class="role-tip">
-          {{ recordingState === 'recording' ? `说话 ${speechSecondsText}s / 静音 ${silenceSecondsText}s` : '等待回答' }}
-        </p>
-      </article>
-    </section>
+          <div class="wave" :class="{ active: isSpeaking }">
+            <span v-for="(bar, index) in interviewerWaveBars" :key="`ai-${index}`" :style="{ height: `${bar}px` }"></span>
+          </div>
+          <p class="role-tip">{{ isSpeaking ? '正在语音播报问题...' : '等待播报' }}</p>
+        </article>
 
-    <section class="voice-card question-panel">
+        <article class="role-card candidate">
+          <div class="role-head">
+            <div class="avatar candidate-avatar">你</div>
+            <div>
+              <h3>候选人</h3>
+              <p>{{ interviewStatusText }}</p>
+            </div>
+          </div>
+          <div class="wave" :class="{ active: candidateWaveActive }">
+            <span v-for="(bar, index) in candidateWaveBars" :key="`user-${index}`" :style="{ height: `${bar}px` }"></span>
+          </div>
+          <p class="role-tip">
+            {{ recordingState === 'recording' ? `说话 ${speechSecondsText}s / 静音 ${silenceSecondsText}s` : '等待回答' }}
+          </p>
+        </article>
+      </section>
+
+      <section class="voice-card question-panel">
       <div class="question-title-row">
         <h2>当前题目</h2>
         <div class="question-tools">
@@ -895,59 +938,57 @@ loadInterviewInfo()
         </div>
       </div>
       <p v-if="infoError || lastError || monitorError" class="error">{{ infoError || lastError || monitorError }}</p>
-    </section>
+      </section>
 
-    <section class="bottom-controls">
-      <div class="talk-mode">
-        <span>主按钮模式：</span>
-        <label><input v-model="mainTalkMode" type="radio" value="click" /> 点击开始/结束</label>
-        <label><input v-model="mainTalkMode" type="radio" value="hold" /> 按住说话</label>
-      </div>
+      <section class="bottom-controls">
+        <div class="talk-mode">
+          <span>主按钮模式：</span>
+          <label><input v-model="mainTalkMode" type="radio" value="click" /> 点击开始/结束</label>
+          <label><input v-model="mainTalkMode" type="radio" value="hold" /> 按住说话</label>
+        </div>
 
-      <div class="primary-actions">
-        <button
-          v-if="mainTalkMode === 'click'"
-          class="btn primary talk-btn"
-          :disabled="isPaused || isSpeaking"
-          @click="toggleMainTalk"
-        >
-          {{ recordingState === 'recording' ? '结束回答' : '开始回答' }}
-        </button>
+        <div class="primary-actions">
+          <button
+            v-if="mainTalkMode === 'click'"
+            class="btn primary talk-btn"
+            :disabled="isPaused || isSpeaking"
+            @click="toggleMainTalk"
+          >
+            {{ recordingState === 'recording' ? '结束回答' : '开始回答' }}
+          </button>
 
-        <button
-          v-else
-          class="btn primary talk-btn"
-          :disabled="isPaused || isSpeaking"
-          @mousedown="holdStart"
-          @mouseup="holdEnd"
-          @mouseleave="holdEnd"
-          @touchstart.prevent="holdStart"
-          @touchend.prevent="holdEnd"
-        >
-          按住说话
-        </button>
-      </div>
+          <button
+            v-else
+            class="btn primary talk-btn"
+            :disabled="isPaused || isSpeaking"
+            @mousedown="holdStart"
+            @mouseup="holdEnd"
+            @mouseleave="holdEnd"
+            @touchstart.prevent="holdStart"
+            @touchend.prevent="holdEnd"
+          >
+            按住说话
+          </button>
+        </div>
 
-      <div class="secondary-actions">
-        <button class="btn secondary" @click="replayQuestion">重听问题</button>
-        <button class="btn secondary" @click="pauseInterview">{{ isPaused ? '继续面试' : '暂停面试' }}</button>
-        <button class="btn danger" @click="endInterview">结束面试</button>
-        <button class="btn secondary" @click="runRoundDemo">演示回合</button>
-      </div>
+        <!-- <div class="secondary-actions">
+          <button class="btn secondary" @click="replayQuestion">重听问题</button>
+        </div> -->
 
-      <div class="fallback-input">
-        <label>文本降级入口（语音异常时使用）</label>
-        <textarea v-model="fallbackAnswerText" rows="2" placeholder="输入文本回答..." />
-        <button class="btn secondary" @click="submitFallbackText">提交文本回答</button>
-      </div>
-    </section>
+        <!-- <div class="fallback-input">
+          <label>文本降级入口（语音异常时使用）</label>
+          <textarea v-model="fallbackAnswerText" rows="2" placeholder="输入文本回答..." />
+          <button class="btn secondary" @click="submitFallbackText">提交文本回答</button>
+        </div> -->
+      </section>
 
-    <section class="voice-card">
-      <h2>流程日志</h2>
-      <ul class="log-list">
-        <li v-for="(item, idx) in flowLog" :key="idx">{{ item }}</li>
-      </ul>
-    </section>
+      <section class="voice-card">
+        <h2>流程日志</h2>
+        <ul class="log-list">
+          <li v-for="(item, idx) in flowLog" :key="idx">{{ item }}</li>
+        </ul>
+      </section>
+    </main>
   </div>
 </template>
 
@@ -955,52 +996,87 @@ loadInterviewInfo()
 .voice-page {
   min-height: 100dvh;
   padding: 16px;
-  background: #f5f5f5;
-  color: #333;
+  background:
+    radial-gradient(circle at top left, rgba(102, 126, 234, 0.14), transparent 34%),
+    radial-gradient(circle at top right, rgba(15, 118, 110, 0.12), transparent 28%),
+    #f5f7fb;
+  color: #1f2937;
+  display: grid;
+  grid-template-columns: 332px minmax(0, 1fr);
+  gap: 16px;
 }
 
-.top-status-bar {
+.voice-sidebar,
+.voice-content {
+  min-height: calc(100dvh - 32px);
+}
+
+.voice-sidebar {
   display: flex;
-  align-items: center;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 12px;
-  background: #fff;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  padding: 14px 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  position: sticky;
+  top: 16px;
+  align-self: start;
 }
 
 .back-btn {
   border: none;
   color: #fff;
-  font-weight: 600;
-  border-radius: 6px;
-  padding: 8px 14px;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 10px 16px;
   cursor: pointer;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  box-shadow: 0 10px 24px rgba(102, 126, 234, 0.24);
 }
 
-.status-chip {
-  padding: 6px 10px;
+.sidebar-hero {
+  background: linear-gradient(180deg, #ffffff 0%, #f8faff 100%);
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 20px;
+  padding: 18px;
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.08);
+}
+
+.sidebar-hero-top {
+  border: none;
+  color: #fff;
+  font-weight: 600;
   border-radius: 6px;
-  border: 1px solid #e0e0e0;
-  background: #fafafa;
   display: flex;
-  gap: 8px;
   align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
 }
 
-.status-chip .k {
-  color: #666;
+.eyebrow {
+  margin: 0 0 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: #64748b;
   font-size: 12px;
+  font-weight: 700;
+}
+
+.sidebar-title {
+  margin: 0;
+  font-size: 26px;
+  line-height: 1.15;
+  color: #0f172a;
+}
+
+.sidebar-subtitle {
+  margin: 8px 0 0;
+  color: #475569;
+  font-size: 14px;
 }
 
 .scene-light {
-  margin-left: auto;
-  border-radius: 16px;
-  padding: 6px 12px;
-  font-weight: 600;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-weight: 700;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1024,7 +1100,7 @@ loadInterviewInfo()
 
 .scene-light.speaking {
   background: #eef2ff;
-  color: #3730a3;
+  color: #4338ca;
 }
 
 .scene-light.thinking {
@@ -1037,31 +1113,161 @@ loadInterviewInfo()
   color: #374151;
 }
 
-@keyframes pulse {
-  0% {
-    box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.25);
-  }
-  70% {
-    box-shadow: 0 0 0 8px rgba(0, 0, 0, 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
-  }
+.voice-card {
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 20px;
+  padding: 18px;
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(10px);
+}
+
+.sidebar-card {
+  padding: 16px;
+}
+
+.card-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.card-title-row h2 {
+  margin: 0;
+  font-size: 18px;
+  color: #0f172a;
+}
+
+.mini-badge {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.status-item {
+  padding: 12px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.status-label {
+  display: block;
+  color: #64748b;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.status-item strong {
+  color: #0f172a;
+  font-size: 14px;
+}
+
+.sidebar-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.sidebar-actions .btn.secondary:last-child {
+  grid-column: span 2;
+}
+
+.voice-content {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
 }
 
 .main-stage {
-  margin-top: 14px;
+  width: 100%;
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
 }
 
 .role-card {
-  background: #fff;
-  border: 1px solid #e0e0e0;
-  border-radius: 10px;
-  padding: 14px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  min-height: 208px;
+}
+
+.interviewer-avatar {
+  background: linear-gradient(135deg, #4338ca 0%, #06b6d4 100%);
+}
+
+.candidate-avatar {
+  background: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%);
+}
+
+.wave {
+  margin-top: 16px;
+  height: 42px;
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.wave span {
+  display: block;
+  width: 9px;
+  height: 10px;
+  border-radius: 999px;
+  background: #cbd5e1;
+  transition: all 0.2s ease;
+}
+
+.wave.active span {
+  background: linear-gradient(180deg, #60a5fa 0%, #4f46e5 100%);
+  animation: bars 1s infinite ease-in-out;
+}
+
+.wave.active span:nth-child(2) {
+  animation-delay: 0.08s;
+}
+
+.wave.active span:nth-child(3) {
+  animation-delay: 0.16s;
+}
+
+.wave.active span:nth-child(4) {
+  animation-delay: 0.24s;
+}
+
+.wave.active span:nth-child(5) {
+  animation-delay: 0.32s;
+}
+
+@keyframes bars {
+  0%,
+  100% {
+    opacity: 0.6;
+    transform: scaleY(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scaleY(1.15);
+  }
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(15, 23, 42, 0.25);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(15, 23, 42, 0);
+  }
 }
 
 .role-head {
@@ -1085,64 +1291,12 @@ loadInterviewInfo()
   width: 42px;
   height: 42px;
   border-radius: 999px;
-  background: #3730a3;
+  background: #4338ca;
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
-}
-
-.avatar.me {
-  background: #0f766e;
-}
-
-.wave {
-  margin-top: 12px;
-  height: 40px;
-  display: flex;
-  align-items: flex-end;
-  gap: 5px;
-}
-
-.wave span {
-  display: block;
-  width: 8px;
-  height: 8px;
-  background: #cbd5e1;
-  border-radius: 4px;
-  transition: all 0.2s ease;
-}
-
-.wave.active span {
-  background: #6366f1;
-  animation: bars 0.9s infinite ease-in-out;
-}
-
-.wave.active span:nth-child(2) {
-  animation-delay: 0.1s;
-}
-
-.wave.active span:nth-child(3) {
-  animation-delay: 0.2s;
-}
-
-.wave.active span:nth-child(4) {
-  animation-delay: 0.3s;
-}
-
-.wave.active span:nth-child(5) {
-  animation-delay: 0.4s;
-}
-
-@keyframes bars {
-  0%,
-  100% {
-    height: 8px;
-  }
-  50% {
-    height: 30px;
-  }
 }
 
 .role-tip {
@@ -1152,16 +1306,11 @@ loadInterviewInfo()
 }
 
 .voice-card {
-  margin-top: 16px;
-  background: #fff;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  padding: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  width: 100%;
 }
 
 .question-panel {
-  margin-top: 14px;
+  margin-top: 0;
 }
 
 .autostart-prompt {
@@ -1259,7 +1408,7 @@ loadInterviewInfo()
 
 .btn {
   border: none;
-  background: #3498db;
+  background: #64748b;
   color: #fff;
   border-radius: 6px;
   padding: 8px 12px;
@@ -1277,7 +1426,7 @@ loadInterviewInfo()
 }
 
 .btn.secondary {
-  background: #3498db;
+  background: #334155;
 }
 
 .btn.danger {
@@ -1285,12 +1434,7 @@ loadInterviewInfo()
 }
 
 .bottom-controls {
-  margin-top: 14px;
-  background: #fff;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  padding: 14px;
+  width: 100%;
 }
 
 .talk-mode {
@@ -1371,8 +1515,17 @@ loadInterviewInfo()
 }
 
 @media (max-width: 900px) {
-  .top-status-bar {
-    align-items: flex-start;
+  .voice-page {
+    grid-template-columns: 1fr;
+  }
+
+  .voice-sidebar {
+    position: static;
+    min-height: auto;
+  }
+
+  .voice-content {
+    min-height: auto;
   }
 
   .scene-light {
@@ -1390,6 +1543,14 @@ loadInterviewInfo()
 
   .status-grid {
     grid-template-columns: 1fr;
+  }
+
+  .sidebar-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar-actions .btn.secondary:last-child {
+    grid-column: auto;
   }
 }
 </style>

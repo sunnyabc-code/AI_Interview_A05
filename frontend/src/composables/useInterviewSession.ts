@@ -93,7 +93,8 @@ export function useInterviewSession() {
         const data = await response.json()
         if (data.code === 200) {
           interview.value = { ...interview.value, ...data.data }
-          startCountdown()
+          addWelcomeMessage()
+          await getNextQuestion()
           return true
         } else {
           addSystemMessage(data.message || '开始面试失败')
