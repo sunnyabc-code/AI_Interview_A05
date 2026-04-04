@@ -174,6 +174,20 @@ class InterviewRoundAnswerResponseSerializer(serializers.Serializer):
     already_answered = serializers.BooleanField(default=False)
 
 
+class InterviewRoundAnalysisSerializer(serializers.Serializer):
+    """轮次分析数据序列化器"""
+
+    overall_score = serializers.FloatField(allow_null=True)
+    overall_comment = serializers.CharField(allow_blank=True)
+    technical_score = serializers.FloatField(allow_null=True)
+    communication_score = serializers.FloatField(allow_null=True)
+    logic_score = serializers.FloatField(allow_null=True)
+    adaptability_score = serializers.FloatField(allow_null=True)
+    highlights = serializers.ListField(child=serializers.CharField(), default=list)
+    weaknesses = serializers.ListField(child=serializers.CharField(), default=list)
+    suggestions = serializers.ListField(child=serializers.CharField(), default=list)
+
+
 class InterviewRoundListSerializer(serializers.ModelSerializer):
     round_id = serializers.IntegerField(source="id", read_only=True)
     interview_id = serializers.IntegerField(source="interview.id", read_only=True)
@@ -186,6 +200,7 @@ class InterviewRoundListSerializer(serializers.ModelSerializer):
     question_id = serializers.IntegerField(
         source="question.id", read_only=True, allow_null=True
     )
+    analysis = serializers.SerializerMethodField()
 
     class Meta:
         model = InterviewRound
@@ -203,7 +218,68 @@ class InterviewRoundListSerializer(serializers.ModelSerializer):
             "start_time",
             "end_time",
             "created_at",
+            "analysis",
         ]
+
+    def _to_nullable_float(self, value):
+        if value is None:
+            return None
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
+
+    def _to_text(self, value):
+        if value is None:
+            return ""
+        return str(value)
+
+    def _to_text_list(self, value):
+        if value is None:
+            return []
+
+        if isinstance(value, list):
+            return [
+                str(item) for item in value if item is not None and str(item).strip()
+            ]
+
+        if isinstance(value, dict):
+            return [f"{key}: {item}" for key, item in value.items()]
+
+        text = str(value).strip()
+        return [text] if text else []
+
+    def get_analysis(self, obj):
+        """获取关联的轮次分析数据，并兼容历史脏数据类型。"""
+        try:
+            analysis = obj.analysis
+        except Exception:
+            return None
+
+        if not analysis:
+            return None
+
+        return {
+            "overall_score": self._to_nullable_float(
+                getattr(analysis, "overall_score", None)
+            ),
+            "overall_comment": self._to_text(getattr(analysis, "overall_comment", "")),
+            "technical_score": self._to_nullable_float(
+                getattr(analysis, "technical_score", None)
+            ),
+            "communication_score": self._to_nullable_float(
+                getattr(analysis, "communication_score", None)
+            ),
+            "logic_score": self._to_nullable_float(
+                getattr(analysis, "logic_score", None)
+            ),
+            "adaptability_score": self._to_nullable_float(
+                getattr(analysis, "adaptability_score", None)
+            ),
+            "highlights": self._to_text_list(getattr(analysis, "highlights", [])),
+            "weaknesses": self._to_text_list(getattr(analysis, "weaknesses", [])),
+            "suggestions": self._to_text_list(getattr(analysis, "suggestions", [])),
+        }
 
 
 class InterviewRoundAudioUploadRequestSerializer(serializers.Serializer):

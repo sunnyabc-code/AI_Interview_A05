@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import type { Interview } from '../types'
 
 const props = defineProps<{
-  interview: any
-  onCardClick: (interview: any) => void
+  interview: Interview
+  onCardClick: (interview: Interview) => void
   onDelete: (interviewId: number) => void
 }>()
 
@@ -53,34 +54,28 @@ const statusColor = (status: string) => {
     <div class="card-header">
       <h3 class="interview-name">{{ interview.name || '未命名面试' }}</h3>
       <div class="header-actions">
-        <span 
-          class="status-badge"
-          :style="{ backgroundColor: statusColor(interview.status) }"
-        >
+        <span class="status-badge" :style="{ backgroundColor: statusColor(interview.status) }">
           {{ statusText(interview.status) }}
         </span>
-        <button 
-          class="delete-btn"
-          @click="handleDeleteClick"
-          title="删除面试"
-        >
+        <button class="delete-btn" @click="handleDeleteClick" title="删除面试">
           删除
         </button>
       </div>
     </div>
     <div class="card-body">
-        <div class="info-item">
-          <span class="label">岗位：</span>
-          <span class="value">{{ interview.position_name }}</span>
-        </div>
-        <div class="info-item">
-          <span class="label">难度：</span>
-          <span class="value">{{ interview.difficulty_name || '未设置' }}</span>
-        </div>
-        <div class="info-item">
-          <span class="label">模式：</span>
-          <span class="value">{{ interview.mode === 'text' ? '文本模式' : interview.mode === 'voice' ? '语音模式' : '混合模式' }}</span>
-        </div>
+      <div class="info-item">
+        <span class="label">岗位：</span>
+        <span class="value">{{ interview.position_name }}</span>
+      </div>
+      <div class="info-item">
+        <span class="label">难度：</span>
+        <span class="value">{{ interview.difficulty_name || '未设置' }}</span>
+      </div>
+      <div class="info-item">
+        <span class="label">模式：</span>
+        <span class="value">{{ interview.mode === 'text' ? '文本模式' : interview.mode === 'voice' ? '语音模式' : '混合模式'
+          }}</span>
+      </div>
       <div class="info-item">
         <span class="label">总轮次：</span>
         <span class="value">{{ interview.total_rounds }} 轮</span>
@@ -91,7 +86,7 @@ const statusColor = (status: string) => {
       </div>
     </div>
   </div>
-  
+
   <!-- 删除确认弹窗 - 使用teleport移到body下避免层级问题 -->
   <Teleport to="body">
     <div v-if="showDeleteConfirm" class="delete-confirm-overlay" @click="cancelDelete">
@@ -201,23 +196,23 @@ const statusColor = (status: string) => {
   .interview-card {
     padding: 1rem;
   }
-  
+
   .card-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 0.5rem;
   }
-  
+
   .status-badge {
     align-self: flex-start;
   }
-  
+
   .info-item {
     flex-direction: column;
     align-items: flex-start;
     gap: 0.2rem;
   }
-  
+
   .label {
     min-width: auto;
   }

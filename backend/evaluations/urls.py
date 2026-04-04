@@ -22,4 +22,9 @@ urlpatterns = [
         views.ImentivAnalysisStatusView.as_view(),
         name="imentiv_analysis_status",
     ),
+    path(
+        "rounds/<int:round_id>/audio-analysis/",
+        views.RoundAudioAnalysisView.as_view(),
+        name="round_audio_analysis",
+    ),
 ]
