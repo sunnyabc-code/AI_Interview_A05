@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     "reports",
     "recommendations",
     "learning",
+    "user_projects",
 ]
 
 MIDDLEWARE = [
