@@ -103,6 +103,27 @@ class InterviewRound(models.Model):
     question_content = models.TextField(blank=True, verbose_name="问题内容快照")
     user_answer = models.TextField(blank=True, verbose_name="用户回答")
 
+    # 百炼 Application 多轮会话：追问需带上上一轮返回的 session_id
+    dashscope_session_id = models.CharField(
+        max_length=128,
+        blank=True,
+        default="",
+        verbose_name="百炼会话ID",
+    )
+
+    # 技术链：与 job_knowledge 对齐；主问随机 serial 1~7，追问沿用同链知识点
+    job_knowledge_serial = models.IntegerField(
+        null=True,
+        blank=True,
+        verbose_name="知识点序号",
+    )
+    chain_topic_label = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        verbose_name="本链知识点/主题标签",
+    )
+
     start_time = models.DateTimeField(auto_now_add=True, verbose_name="开始时间")
     end_time = models.DateTimeField(null=True, blank=True, verbose_name="结束时间")
 
