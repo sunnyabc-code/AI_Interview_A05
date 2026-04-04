@@ -61,3 +61,48 @@ class UserProgress(models.Model):
 
     def __str__(self):
         return f'{self.user.username} - {self.avg_overall_score}'
+
+
+class JobKnowledge(models.Model):
+    id_job_knowledge = models.IntegerField(primary_key=True)
+    name = models.CharField(max_length=45)
+    serial_number = models.IntegerField()
+    job_id = models.BigIntegerField()
+
+    class Meta:
+        db_table = 'job_knowledge'
+        managed = False
+        verbose_name = '岗位知识点'
+        verbose_name_plural = '岗位知识点'
+
+    def __str__(self):
+        return self.name
+
+
+class UserKnowledgeMatrics(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    interview = models.ForeignKey(
+        'interviews.Interview',
+        on_delete=models.CASCADE,
+        db_column='interview_id',
+        related_name='knowledge_matrics',
+    )
+    job_knowledge = models.ForeignKey(
+        JobKnowledge,
+        on_delete=models.CASCADE,
+        db_column='id_job_knowledge',
+        to_field='id_job_knowledge',
+        related_name='user_knowledge_matrics',
+    )
+    logic = models.IntegerField()
+    accuracy = models.IntegerField()
+
+    class Meta:
+        db_table = 'user_knowledge_matrics'
+        ordering = ['-id']
+        verbose_name = '用户知识点掌握记录'
+        verbose_name_plural = '用户知识点掌握记录'
+        managed = False
+
+    def __str__(self):
+        return f'{self.interview_id}-{self.job_knowledge_id}'
