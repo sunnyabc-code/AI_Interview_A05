@@ -1,13 +1,22 @@
+import random
+
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-from django.db import transaction
+from django.conf import settings
+from django.db import DatabaseError, transaction
 from django.db.models import F, Max
 from django.utils import timezone
 
 from core.response import APIResponse
 from core.llm_client import LLMClient, LLMClientError
+from core.dashscope_application import (
+    DashScopeApplicationError,
+    generate_question_via_application,
+    is_dashscope_configured_for_position,
+    resolve_app_id_for_position,
+)
 from interviews.models import Interview, InterviewRound
 from interviews.serializers import (
     InterviewCreateSerializer,
@@ -20,6 +29,7 @@ from interviews.serializers import (
     InterviewRoundListSerializer,
 )
 from questions.models import Question, QuestionCategory
+from positions.models import JobKnowledge
 
 
 class InterviewListCreateView(APIView):
@@ -357,9 +367,82 @@ class InterviewNextQuestionView(APIView):
 
         return None
 
-    def _build_llm_fallback_prompt(
+    def _used_technical_serials_in_interview(self, interview):
+        """本场面试已出现过的技术主问知识点序号（每条链 depth=0 一条），用于避免重复 random。"""
+        return set(
+            InterviewRound.objects.filter(
+                interview=interview,
+                category__code="technical",
+                followup_depth=0,
+                job_knowledge_serial__isnull=False,
+            ).values_list("job_knowledge_serial", flat=True)
+        )
+
+    def _technical_chain_prior_questions(self, interview, chain_index):
+        """当前技术链上已问过的问题文本（按轮次顺序），供追问 prompt 使用。"""
+        rounds = (
+            InterviewRound.objects.filter(
+                interview=interview,
+                category__code="technical",
+                chain_index=chain_index,
+            )
+            .order_by("round_number")
+            .only("question_content")
+        )
+        out = []
+        for r in rounds:
+            text = (r.question_content or "").strip()
+            if text:
+                out.append(text)
+        return out
+
+    def _resolve_technical_topic(self, interview, chain_index, followup_depth):
+        """
+        技术链：主问在 job_knowledge 中按当前岗位的 job_id（= job_positions.id）随机选题；
+        例如 java_backend 可能为 1~7，LLM（job_id=1）可能为 1~9，均以表内该 job_id 下全部行为准。
+        同一场面试内已用过的 serial_number 不再参与 random；追问沿用同链主问知识点。
+        返回 (topic_name, serial_number|None)。
+        """
+        if followup_depth > 0:
+            root = (
+                InterviewRound.objects.filter(
+                    interview=interview,
+                    category__code="technical",
+                    chain_index=chain_index,
+                    followup_depth=0,
+                )
+                .order_by("-round_number")
+                .first()
+            )
+            if root:
+                label = (root.chain_topic_label or "").strip()
+                if label:
+                    return label, root.job_knowledge_serial
+
+        used = self._used_technical_serials_in_interview(interview)
+        try:
+            # 该岗位下全部知识点（LLM 常见 1~9、Java 常见 1~7 等，由表数据决定，不硬编码区间）
+            qs = JobKnowledge.objects.filter(
+                job_id=interview.position_id,
+            ).exclude(serial_number__in=used)
+            if not qs.exists():
+                qs = JobKnowledge.objects.filter(job_id=interview.position_id)
+            if not qs.exists():
+                return None, None
+            row = random.choice(list(qs))
+            return (row.name or "").strip(), row.serial_number
+        except DatabaseError:
+            return None, None
+
+    def _build_generation_prompt(
         self, interview, category_code, chain_index, followup_depth
     ):
+        """
+        按题型 + difficulty_config 生成发给百炼/LLM 的 prompt。
+        技术题结合 job_knowledge（按岗位 job_id 全表随机，排除本场已用序号）；追问含历史问题列表。
+        返回 (prompt, meta)，meta 含 chain_topic_label、job_knowledge_serial（仅技术链有值）。
+        """
+        meta = {"chain_topic_label": "", "job_knowledge_serial": None}
         difficulty_code = (
             interview.difficulty_config.difficulty_code
             if interview.difficulty_config
@@ -370,26 +453,114 @@ class InterviewNextQuestionView(APIView):
             if interview.difficulty_config
             else 120
         )
+        pos_name = (interview.position.name or "").strip() or "该"
+        ctx = f"难度：{difficulty_code}，答题时间约 {answer_time_seconds} 秒。"
 
-        category_label_map = {
-            "technical": "技术知识题",
-            "project": "项目经历题",
-            "scenario": "场景题",
-        }
-        category_label = category_label_map.get(category_code, category_code)
-        question_role = "主问题" if followup_depth == 0 else f"第{followup_depth}次追问"
+        if category_code == "technical":
+            topic, serial = self._resolve_technical_topic(
+                interview, chain_index, followup_depth
+            )
+            if topic:
+                meta["chain_topic_label"] = topic
+                meta["job_knowledge_serial"] = serial
+            if followup_depth == 0:
+                if topic:
+                    prompt = (
+                        f"{ctx}\n"
+                        f"请生成一个关于「{topic}」的技术面试题。\n"
+                        "只输出问题本身，不要输出答案、编号或解释。"
+                    )
+                else:
+                    prompt = (
+                        f"{ctx}\n"
+                        "请生成一道技术知识面试题。\n"
+                        "只输出问题本身，不要输出答案、编号或解释。"
+                    )
+            else:
+                if topic:
+                    prior = self._technical_chain_prior_questions(
+                        interview, chain_index
+                    )
+                    if prior:
+                        history_block = "\n".join(
+                            f"{i + 1}. {q}" for i, q in enumerate(prior)
+                        )
+                    else:
+                        history_block = "（暂无）"
+                    prompt = (
+                        f"{ctx}\n\n"
+                        f"当前考察主题是：【{topic}】\n\n"
+                        f"历史已经问过的问题：\n{history_block}\n\n"
+                        "请基于同一主题生成一个新的面试问题，要求：\n\n"
+                        "1. 必须仍然围绕该主题，但不能重复已有问题的核心考察点\n"
+                        "2. 必须从不同考察维度出题\n\n"
+                        "只输出问题本身，不要输出答案、编号或解释。"
+                    )
+                else:
+                    prompt = (
+                        f"{ctx}\n"
+                        "请生成一道技术知识面试的追问，与之前问过的问题不重复。\n"
+                        "只输出问题本身，不要输出答案、编号或解释。"
+                    )
+            return prompt, meta
 
-        return (
-            "你是一名严谨的技术面试官。请基于以下约束仅输出一个中文面试问题，不要输出答案。\n"
-            f"- 岗位：{interview.position.name}\n"
-            f"- 难度：{difficulty_code}\n"
-            f"- 题型：{category_label}\n"
-            f"- 提问链编号：{chain_index}\n"
-            f"- 当前类型：{question_role}\n"
-            f"- 预估答题时长：{answer_time_seconds}秒\n"
-            "- 要求：问题清晰、可回答、不过度宽泛；如果是追问，要基于上一轮回答继续深挖细节。\n"
-            "- 输出格式：只输出问题文本本身，不要带编号、解释、答案或额外说明。"
+        if category_code == "scenario":
+            if followup_depth == 0:
+                prompt = (
+                    f"{ctx}\n"
+                    "请生成一个场景题。\n"
+                    "只输出问题本身，不要输出答案、编号或解释。"
+                )
+            else:
+                prompt = (
+                    f"{ctx}\n"
+                    "请生成一个不同的场景题，与之前问过的问题不重复。\n"
+                    "只输出问题本身，不要输出答案、编号或解释。"
+                )
+            return prompt, meta
+
+        if category_code == "project":
+            if followup_depth == 0:
+                prompt = (
+                    f"{ctx}\n"
+                    f"请生成一个关于「{pos_name}」岗位项目经历的问题。\n"
+                    "只输出问题本身，不要输出答案、编号或解释。"
+                )
+            else:
+                prompt = (
+                    f"{ctx}\n"
+                    f"请生成一个不同的、关于「{pos_name}」岗位项目经历的问题，"
+                    "与之前问过的问题不重复。\n"
+                    "只输出问题本身，不要输出答案、编号或解释。"
+                )
+            return prompt, meta
+
+        prompt = (
+            f"{ctx}\n"
+            f"题型：{category_code}，提问链第 {chain_index} 条，"
+            f"{'主问题' if followup_depth == 0 else f'第{followup_depth}次追问'}。\n"
+            "只输出一个中文面试问题，不要输出答案。"
         )
+        return prompt, meta
+
+    def _previous_dashscope_session_for_chain(
+        self, interview, category_code, chain_index, followup_depth
+    ):
+        """同一条提问链上的追问：带上上一轮百炼返回的 session_id。"""
+        if followup_depth <= 0:
+            return None
+        prev = (
+            InterviewRound.objects.filter(
+                interview=interview,
+                category__code=category_code,
+                chain_index=chain_index,
+                followup_depth=followup_depth - 1,
+            )
+            .order_by("-round_number")
+            .first()
+        )
+        sid = (getattr(prev, "dashscope_session_id", None) or "").strip()
+        return sid or None
 
     @swagger_auto_schema(
         tags=["Interview"],
@@ -486,9 +657,11 @@ class InterviewNextQuestionView(APIView):
         selected_category_code, chain_index, followup_depth = next_slot
 
         selected_question = None
-        selected_question = self._pick_question_from_category(
-            interview, selected_category_code, used_question_ids
-        )
+        # True（默认）：跳过题库，按题型 + 难度 + job_knowledge 走生成；False：优先抽题库
+        if not getattr(settings, "INTERVIEW_PREFER_LLM_OVER_BANK", True):
+            selected_question = self._pick_question_from_category(
+                interview, selected_category_code, used_question_ids
+            )
 
         category_name_map = {
             "technical": "技术知识",
@@ -505,23 +678,47 @@ class InterviewNextQuestionView(APIView):
         )
 
         if not selected_question:
-            llm_prompt = self._build_llm_fallback_prompt(
+            llm_prompt, prompt_meta = self._build_generation_prompt(
                 interview, selected_category_code, chain_index, followup_depth
             )
-            client = LLMClient.from_settings()
-            try:
-                generated_question = client.generate_question_from_prompt(
-                    prompt=llm_prompt
+            generated_question = None
+            new_dashscope_session = ""
+            question_source = "llm_auto"
+
+            if is_dashscope_configured_for_position(interview.position):
+                app_id = resolve_app_id_for_position(interview.position)
+                prev_session = self._previous_dashscope_session_for_chain(
+                    interview, selected_category_code, chain_index, followup_depth
                 )
-            except LLMClientError as exc:
-                return APIResponse.error(
-                    message="题库未命中且LLM调用失败",
-                    code=502,
-                    errors={
-                        "llm_error": str(exc),
-                        "llm_prompt": llm_prompt,
-                    },
-                )
+                try:
+                    generated_question, new_dashscope_session = (
+                        generate_question_via_application(
+                            prompt=llm_prompt,
+                            app_id=app_id,
+                            session_id=prev_session,
+                        )
+                    )
+                    question_source = "dashscope_app"
+                except DashScopeApplicationError:
+                    generated_question = None
+
+            if not generated_question:
+                client = LLMClient.from_settings()
+                try:
+                    generated_question = client.generate_question_from_prompt(
+                        prompt=llm_prompt
+                    )
+                    question_source = "llm_auto"
+                    new_dashscope_session = ""
+                except LLMClientError as exc:
+                    return APIResponse.error(
+                        message="题库未命中且LLM调用失败",
+                        code=502,
+                        errors={
+                            "llm_error": str(exc),
+                            "llm_prompt": llm_prompt,
+                        },
+                    )
 
             interview_round = InterviewRound.objects.create(
                 interview=interview,
@@ -531,6 +728,9 @@ class InterviewNextQuestionView(APIView):
                 category=category,
                 question=None,
                 question_content=generated_question,
+                dashscope_session_id=new_dashscope_session,
+                chain_topic_label=prompt_meta.get("chain_topic_label") or "",
+                job_knowledge_serial=prompt_meta.get("job_knowledge_serial"),
             )
 
             update_fields = []
@@ -543,6 +743,11 @@ class InterviewNextQuestionView(APIView):
             if update_fields:
                 interview.save(update_fields=update_fields)
 
+            msg = (
+                "题库未命中，已调用百炼应用生成题目"
+                if question_source == "dashscope_app"
+                else "题库未命中，已自动调用LLM生成题目"
+            )
             response_data = {
                 "round_id": interview_round.id,
                 "interview_id": interview.id,
@@ -560,12 +765,14 @@ class InterviewNextQuestionView(APIView):
                 ),
                 "start_time": interview_round.start_time,
                 "need_llm_generation": False,
-                "question_source": "llm_auto",
+                "question_source": question_source,
                 "llm_prompt": llm_prompt,
+                "chain_topic_label": interview_round.chain_topic_label or None,
+                "job_knowledge_serial": interview_round.job_knowledge_serial,
             }
             return APIResponse.success(
                 data=response_data,
-                message="题库未命中，已自动调用LLM生成题目",
+                message=msg,
                 code=201,
             )
 

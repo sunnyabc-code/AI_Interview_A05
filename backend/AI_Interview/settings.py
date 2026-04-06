@@ -16,6 +16,16 @@ from pathlib import Path
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# 本地密钥：项目根目录或 backend 目录下的 .env（勿提交仓库，已在 .gitignore）
+try:
+    from dotenv import load_dotenv
+
+    _repo_root = BASE_DIR.parent
+    load_dotenv(_repo_root / ".env")
+    load_dotenv(BASE_DIR / ".env", override=True)
+except ImportError:
+    pass
+
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
@@ -49,6 +59,7 @@ INSTALLED_APPS = [
     "reports",
     "recommendations",
     "learning",
+    "user_projects",
 ]
 
 MIDDLEWARE = [
@@ -226,6 +237,21 @@ LLM_MODEL = os.getenv("LLM_MODEL", "deepseek-ai/DeepSeek-V3.2")
 LLM_TIMEOUT_SECONDS = int(os.getenv("LLM_TIMEOUT_SECONDS", "90"))
 LLM_RETRY_COUNT = int(os.getenv("LLM_RETRY_COUNT", "2"))
 LLM_RETRY_BACKOFF_SECONDS = float(os.getenv("LLM_RETRY_BACKOFF_SECONDS", "1.5"))
+
+# 阿里云百炼 Model Studio 应用（Application.call），用于按岗位绑定不同 app_id 与追问 session
+# 文档示例：api_key + app_id + prompt；追问时传入上一轮 response.output.session_id
+DASHSCOPE_API_KEY = os.getenv("DASHSCOPE_API_KEY", "")
+# 可选：按岗位 code 映射多个应用，例如 {"java_backend":"uuid","llm":"uuid"}
+DASHSCOPE_APP_IDS_JSON = os.getenv("DASHSCOPE_APP_IDS_JSON", "{}")
+# 也可单独配置常用岗位（与 JSON 二选一或混用，JSON 优先）
+DASHSCOPE_APP_ID_JAVA_BACKEND = os.getenv("DASHSCOPE_APP_ID_JAVA_BACKEND", "")
+DASHSCOPE_APP_ID_LLM = os.getenv("DASHSCOPE_APP_ID_LLM", "")
+DASHSCOPE_APP_ID_DEFAULT = os.getenv("DASHSCOPE_APP_ID_DEFAULT", "")
+
+# 面试出题：True 时跳过题库，直接按题型 + difficulty_config + job_knowledge 走生成 prompt（推荐与百炼/LLM 联用）
+INTERVIEW_PREFER_LLM_OVER_BANK = os.getenv(
+    "INTERVIEW_PREFER_LLM_OVER_BANK", "true"
+).lower() in ("1", "true", "yes", "on")
 
 # iMentiv 音频情感分析配置（硬编码，仅用于本地调试）
 IMENTIV_BASE_URL = "https://api.imentiv.ai"
