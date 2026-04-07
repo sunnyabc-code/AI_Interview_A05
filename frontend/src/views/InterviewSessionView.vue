@@ -8,6 +8,7 @@ const {
   currentRound,
   isSubmitting,
   isWaitingForQuestion,
+  isClosingInterview,
   isInterviewEnded,
   isPaused,
   countdownSeconds,
@@ -99,7 +100,7 @@ const stopRecording = async () => {
 }
 
 const toggleRecording = async () => {
-  if (isSubmitting.value || isWaitingForQuestion.value || isInterviewEnded.value || isPaused.value) {
+  if (isSubmitting.value || isWaitingForQuestion.value || isClosingInterview.value || isInterviewEnded.value || isPaused.value) {
     return
   }
 
@@ -195,6 +196,7 @@ const canSubmit = computed(() => {
          (hasText || hasAudio) && 
          currentRound.value && 
          !isWaitingForQuestion.value &&
+         !isClosingInterview.value &&
          !isInterviewEnded.value &&
          !isPaused.value
 })
@@ -233,6 +235,19 @@ onUnmounted(() => {
 
 <template>
   <div class="interview-session">
+    <Teleport to="body">
+      <div
+        v-if="isClosingInterview"
+        class="session-exit-overlay"
+        aria-live="polite"
+      >
+        <div class="session-exit-inner">
+          <div class="session-spinner" />
+          <p class="session-exit-text">正在结束面试，请稍候…</p>
+        </div>
+      </div>
+    </Teleport>
+
     <div v-if="loading" class="loading">
       加载中...
     </div>
@@ -366,7 +381,7 @@ onUnmounted(() => {
               v-model="userAnswer"
               class="message-input"
               placeholder="请输入您的回答..."
-              :disabled="isSubmitting || isWaitingForQuestion || isInterviewEnded || isPaused"
+              :disabled="isSubmitting || isWaitingForQuestion || isClosingInterview || isInterviewEnded || isPaused"
               rows="3"
               @keydown.enter.prevent="handleSendMessage"
             />
@@ -374,7 +389,7 @@ onUnmounted(() => {
               <button
                 class="record-btn"
                 @click="toggleRecording"
-                :disabled="isSubmitting || isWaitingForQuestion || isInterviewEnded || isPaused || isUploadingAudio"
+                :disabled="isSubmitting || isWaitingForQuestion || isClosingInterview || isInterviewEnded || isPaused || isUploadingAudio"
               >
                 {{ isRecording ? '停止录音' : '开始录音' }}
               </button>
@@ -388,7 +403,7 @@ onUnmounted(() => {
               <button 
                 class="retry-btn" 
                 @click="retryGenerateQuestion"
-                :disabled="isWaitingForQuestion || isInterviewEnded || isPaused || currentRound"
+                :disabled="isWaitingForQuestion || isClosingInterview || isInterviewEnded || isPaused || currentRound"
               >
                 重试生成问题
               </button>
@@ -912,6 +927,44 @@ onUnmounted(() => {
   opacity: 0.6;
   cursor: not-allowed;
   transform: none;
+}
+
+.session-exit-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(255, 255, 255, 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(2px);
+}
+
+.session-exit-inner {
+  text-align: center;
+  padding: 2rem;
+}
+
+.session-spinner {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 1rem;
+  border: 4px solid #e5e7eb;
+  border-top-color: #2563eb;
+  border-radius: 50%;
+  animation: session-spin 0.85s linear infinite;
+}
+
+.session-exit-text {
+  margin: 0;
+  font-size: 1rem;
+  color: #374151;
+}
+
+@keyframes session-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media (max-width: 1024px) {

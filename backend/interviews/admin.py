@@ -66,6 +66,7 @@ class InterviewRoundAnalysisAdmin(admin.ModelAdmin):
         "technical_score",
         "communication_score",
         "logic_score",
+        "job_matching_score",
         "created_at",
     ]
     search_fields = ["round__interview__user__username", "overall_comment"]

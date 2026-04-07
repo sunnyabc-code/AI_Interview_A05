@@ -30,6 +30,8 @@ from interviews.serializers import (
 )
 from questions.models import Question, QuestionCategory
 from positions.models import JobKnowledge
+from interviews.answer_utils import is_effective_user_answer
+from interviews.scoring_service import build_evaluation_summary, run_scoring_for_interview
 
 
 class InterviewListCreateView(APIView):
@@ -604,13 +606,12 @@ class InterviewNextQuestionView(APIView):
         rounds_qs = InterviewRound.objects.filter(interview=interview).select_related(
             "category", "question"
         )
-        unfinished_round = (
-            rounds_qs.filter(end_time__isnull=True).order_by("-round_number").first()
-        )
-        if unfinished_round and not (unfinished_round.user_answer or "").strip():
-            return APIResponse.error(
-                message="请先完成上一轮作答后再获取下一题", code=400
-            )
+        for r in rounds_qs.order_by("round_number"):
+            if not is_effective_user_answer(r.user_answer):
+                return APIResponse.error(
+                    message="请先完成有效作答后再获取下一题；语音模式需等待转写完成，勿仅保留占位回答",
+                    code=400,
+                )
 
         used_question_ids = list(
             rounds_qs.exclude(question__isnull=True).values_list(
@@ -642,6 +643,8 @@ class InterviewNextQuestionView(APIView):
                 update_fields=["status", "end_time", "total_rounds", "duration_seconds"]
             )
 
+            scoring_result = run_scoring_for_interview(interview)
+
             return APIResponse.success(
                 data={
                     "interview_id": interview.id,
@@ -649,6 +652,7 @@ class InterviewNextQuestionView(APIView):
                     "end_time": interview.end_time,
                     "total_rounds": interview.total_rounds,
                     "duration_seconds": interview.duration_seconds,
+                    "scoring": scoring_result,
                 },
                 message="当前面试已结束",
                 code=200,
@@ -1071,7 +1075,29 @@ class InterviewEndView(APIView):
             return APIResponse.error(message="面试记录不存在", code=404)
 
         if interview.status == "completed":
-            return APIResponse.error(message="面试已经结束", code=400)
+            return APIResponse.success(
+                data={
+                    "interview_id": interview.id,
+                    "status": interview.status,
+                    "end_time": interview.end_time,
+                    "total_duration": interview.duration_seconds,
+                    "actual_duration": interview.actual_duration,
+                    "scoring": {"skipped": True, "reason": "already_completed"},
+                },
+                message="面试已经结束",
+                code=200,
+            )
+
+        for r in (
+            InterviewRound.objects.filter(interview=interview)
+            .order_by("round_number")
+            .iterator()
+        ):
+            if not is_effective_user_answer(r.user_answer):
+                return APIResponse.error(
+                    message="存在未完成有效作答的轮次；语音模式请等待转写完成后再结束",
+                    code=400,
+                )
 
         end_time = timezone.now()
         total_duration = int((end_time - interview.start_time).total_seconds())
@@ -1085,6 +1111,8 @@ class InterviewEndView(APIView):
             update_fields=["status", "end_time", "duration_seconds", "actual_duration"]
         )
 
+        scoring_result = run_scoring_for_interview(interview)
+
         return APIResponse.success(
             data={
                 "interview_id": interview.id,
@@ -1092,6 +1120,41 @@ class InterviewEndView(APIView):
                 "end_time": interview.end_time,
                 "total_duration": total_duration,
                 "actual_duration": actual_duration,
+                "scoring": scoring_result,
             },
             message="面试已结束",
         )
+
+
+class InterviewEvaluationSummaryView(APIView):
+    """面试结束后的聚合评估：题型勾选、各追问链各维度均分、技术知识点技术准确性。"""
+
+    permission_classes = [IsAuthenticated]
+
+    def _get_user_interview(self, user, interview_id):
+        return (
+            Interview.objects.filter(id=interview_id, user=user)
+            .select_related("position", "difficulty_config")
+            .first()
+        )
+
+    @swagger_auto_schema(
+        tags=["Interview"],
+        operation_summary="面试评估摘要",
+        operation_description="需面试已完成；返回勾选题型、各追问链维度均分、技术知识点列表",
+        security=[{"Bearer": []}],
+        responses={
+            200: openapi.Response("成功"),
+            400: openapi.Response("状态不允许"),
+            404: openapi.Response("不存在"),
+        },
+    )
+    def get(self, request, interview_id):
+        interview = self._get_user_interview(request.user, interview_id)
+        if not interview:
+            return APIResponse.error(message="面试记录不存在", code=404)
+        if interview.status != "completed":
+            return APIResponse.error(message="面试未完成，暂无评估摘要", code=400)
+
+        data = build_evaluation_summary(interview)
+        return APIResponse.success(data=data, message="获取成功", code=200)

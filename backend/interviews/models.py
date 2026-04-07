@@ -154,6 +154,11 @@ class InterviewRoundAnalysis(models.Model):
     communication_score = models.FloatField(verbose_name="沟通得分")
     logic_score = models.FloatField(verbose_name="逻辑得分")
     adaptability_score = models.FloatField(verbose_name="应变得分")
+    job_matching_score = models.FloatField(
+        null=True,
+        blank=True,
+        verbose_name="岗位匹配度",
+    )
 
     highlights = models.JSONField(default=list, verbose_name="亮点")
     weaknesses = models.JSONField(default=list, verbose_name="不足")

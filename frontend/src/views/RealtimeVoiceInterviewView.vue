@@ -707,11 +707,13 @@ const endInterview = async () => {
   try {
     const data = await postJson(`${API_BASE_URL}/api/v1/interviews/${interviewId.value}/end/`)
     interview.value = { ...interview.value, ...data.data, status: 'completed' }
+    addLog('面试结束，进入评估页。')
+    router.push(`/interview/${interviewId.value}/evaluation`)
+    return
   } catch (err) {
     addLog(`结束面试接口失败: ${errorMessage(err)}，将直接返回列表。`)
   }
 
-  addLog('面试结束，返回列表。')
   router.push('/home?menu=interview')
 }
 
