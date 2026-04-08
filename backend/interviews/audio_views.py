@@ -1,8 +1,12 @@
 import os
 from concurrent.futures import ThreadPoolExecutor
+import tempfile
+import wave
 import uuid
+from importlib import import_module
 
 from django.conf import settings
+from django.core.files.base import File
 from django.core.files.storage import default_storage
 from django.db import close_old_connections
 from drf_yasg import openapi
@@ -71,6 +75,76 @@ def _run_async_transcription(audio_id: int, force_replace_answer: bool = False):
 
 def _enqueue_local_asr(audio_id: int, force_replace_answer: bool = False):
     _ASR_EXECUTOR.submit(_run_async_transcription, audio_id, force_replace_answer)
+
+
+def _convert_uploaded_audio_to_wav(audio_file, round_id: int):
+    """将上传音频统一转换为 wav，返回临时文件路径和元数据。"""
+    temp_input_path = None
+    temp_output_path = None
+
+    try:
+        temp_input = tempfile.NamedTemporaryFile(
+            suffix=os.path.splitext(getattr(audio_file, "name", ""))[1] or ".audio",
+            delete=False,
+        )
+        temp_input_path = temp_input.name
+        with temp_input:
+            for chunk in audio_file.chunks():
+                temp_input.write(chunk)
+
+        librosa = import_module("librosa")
+        numpy = import_module("numpy")
+
+        target_sr = int(getattr(settings, "AUDIO_CONVERT_TARGET_SR", 16000))
+        y, sr = librosa.load(temp_input_path, sr=target_sr, mono=True)
+        if y is None or len(y) == 0:
+            raise ValueError("音频文件为空，无法转换为 WAV")
+
+        y = numpy.clip(y, -1.0, 1.0)
+        pcm16 = (y * 32767.0).astype(numpy.int16)
+
+        temp_output = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+        temp_output_path = temp_output.name
+        temp_output.close()
+
+        with wave.open(temp_output_path, "wb") as wav_file:
+            wav_file.setnchannels(1)
+            wav_file.setsampwidth(2)
+            wav_file.setframerate(target_sr)
+            wav_file.writeframes(pcm16.tobytes())
+
+        duration_seconds = float(len(y) / sr) if sr else float(len(y) / target_sr)
+        original_name = os.path.splitext(os.path.basename(getattr(audio_file, "name", "")))[0].strip()
+        if not original_name:
+            original_name = f"round_{round_id}"
+
+        return {
+            "wav_path": temp_output_path,
+            "file_name": f"{original_name}.wav",
+            "mime_type": "audio/wav",
+            "codec": "pcm_s16le",
+            "sample_rate": target_sr,
+            "channels": 1,
+            "duration_seconds": duration_seconds,
+        }
+    except Exception as exc:
+        raise ValueError(f"无法将音频转换为 WAV: {exc}") from exc
+    finally:
+        try:
+            if temp_input_path and os.path.exists(temp_input_path):
+                os.remove(temp_input_path)
+        except OSError:
+            pass
+
+
+def _cleanup_temp_file(file_path: str | None):
+    if not file_path:
+        return
+    try:
+        if os.path.exists(file_path):
+            os.remove(file_path)
+    except OSError:
+        pass
 
 def _enqueue_imentiv_analysis(audio_id):
     from evaluations.tasks import analyze_imentiv_audio_task
@@ -200,20 +274,29 @@ class InterviewRoundAudioUploadView(APIView):
                 code=400,
             )
 
-        file_ext = os.path.splitext(audio_file.name)[1] or ".bin"
+        try:
+            converted_audio = _convert_uploaded_audio_to_wav(audio_file, round_obj.id)
+        except ValueError as exc:
+            return APIResponse.error(message=str(exc), code=400)
+
         file_key = (
             f"interview_audio/user_{request.user.id}/"
-            f"interview_{interview.id}/round_{round_obj.id}/{uuid.uuid4().hex}{file_ext}"
+            f"interview_{interview.id}/round_{round_obj.id}/{uuid.uuid4().hex}.wav"
         )
 
         try:
-            saved_key = default_storage.save(file_key, audio_file)
+            with open(converted_audio["wav_path"], "rb") as converted_fp:
+                saved_key = default_storage.save(file_key, File(converted_fp))
             relative_url = default_storage.url(saved_key)
             file_url = request.build_absolute_uri(relative_url)
+            converted_file_size = os.path.getsize(converted_audio["wav_path"])
         except Exception as exc:
+            _cleanup_temp_file(converted_audio.get("wav_path"))
             return APIResponse.error(
                 message="上传失败", code=500, errors={"detail": str(exc)}
             )
+        finally:
+            _cleanup_temp_file(converted_audio.get("wav_path"))
 
         existing_audio = getattr(round_obj, "audio", None)
         if (
@@ -232,13 +315,14 @@ class InterviewRoundAudioUploadView(APIView):
             "uploaded_by": request.user,
             "file_url": file_url,
             "file_key": saved_key,
-            "file_name": audio_file.name or "",
-            "mime_type": mime_type,
-            "codec": serializer.validated_data.get("codec", ""),
-            "sample_rate": serializer.validated_data.get("sample_rate"),
-            "channels": serializer.validated_data.get("channels"),
-            "file_size_bytes": audio_file.size,
-            "duration_seconds": serializer.validated_data.get("duration_seconds"),
+            "file_name": converted_audio["file_name"],
+            "mime_type": converted_audio["mime_type"],
+            "codec": converted_audio["codec"],
+            "sample_rate": converted_audio["sample_rate"],
+            "channels": converted_audio["channels"],
+            "file_size_bytes": converted_file_size,
+            "duration_seconds": serializer.validated_data.get("duration_seconds")
+            or converted_audio["duration_seconds"],
             "upload_status": "uploaded",
             "asr_status": "pending",
             "analysis_status": "pending",
