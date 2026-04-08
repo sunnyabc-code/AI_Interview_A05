@@ -183,6 +183,7 @@ class InterviewRoundAnalysisSerializer(serializers.Serializer):
     communication_score = serializers.FloatField(allow_null=True)
     logic_score = serializers.FloatField(allow_null=True)
     adaptability_score = serializers.FloatField(allow_null=True)
+    job_matching_score = serializers.FloatField(allow_null=True, required=False)
     highlights = serializers.ListField(child=serializers.CharField(), default=list)
     weaknesses = serializers.ListField(child=serializers.CharField(), default=list)
     suggestions = serializers.ListField(child=serializers.CharField(), default=list)
@@ -275,6 +276,9 @@ class InterviewRoundListSerializer(serializers.ModelSerializer):
             ),
             "adaptability_score": self._to_nullable_float(
                 getattr(analysis, "adaptability_score", None)
+            ),
+            "job_matching_score": self._to_nullable_float(
+                getattr(analysis, "job_matching_score", None)
             ),
             "highlights": self._to_text_list(getattr(analysis, "highlights", [])),
             "weaknesses": self._to_text_list(getattr(analysis, "weaknesses", [])),

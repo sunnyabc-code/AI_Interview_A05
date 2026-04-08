@@ -28,6 +28,12 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
+      path: '/interview/:id/evaluation',
+      name: 'interview-evaluation',
+      component: () => import('../views/InterviewEvaluationView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
       path: '/interview/voice/:id',
       name: 'interview-voice-session',
       component: () => import('../views/RealtimeVoiceInterviewView.vue'),
@@ -54,15 +60,14 @@ const router = createRouter({
   ],
 })
 
-router.beforeEach((to, from, next) => {
+router.beforeEach((to) => {
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth)
   const isAuthenticated = localStorage.getItem('access_token')
 
   if (requiresAuth && !isAuthenticated) {
-    next('/auth')
-  } else {
-    next()
+    return { path: '/auth' }
   }
+  return true
 })
 
 export default router
