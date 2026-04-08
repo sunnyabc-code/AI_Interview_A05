@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import EditProfileModal from '../components/EditProfileModal.vue'
 
@@ -13,9 +13,20 @@ const user = ref({
   email: '',
   phone: '',
   avatar: '',
-  target_positions: [] as any[],
-  interview_count: 0,
   created_at: ''
+})
+
+const joinedDays = computed(() => {
+  if (!user.value.created_at) {
+    return 0
+  }
+  const createdAt = new Date(user.value.created_at)
+  if (Number.isNaN(createdAt.getTime())) {
+    return 0
+  }
+  const diffMs = Date.now() - createdAt.getTime()
+  const days = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+  return Math.max(days + 1, 1)
 })
 
 const showEditModal = ref(false)
@@ -275,12 +286,8 @@ onMounted(() => {
 
         <div class="quick-metrics">
           <article class="metric-card">
-            <p>面试次数</p>
-            <strong>{{ user.interview_count || 0 }}</strong>
-          </article>
-          <article class="metric-card">
-            <p>目标岗位数量</p>
-            <strong>{{ (user.target_positions && user.target_positions.length) || 0 }}</strong>
+            <p>已加入天数</p>
+            <strong>{{ joinedDays }}</strong>
           </article>
           <article class="metric-card">
             <p>账号状态</p>
@@ -305,23 +312,8 @@ onMounted(() => {
           </div>
 
           <div class="info-item">
-            <label>面试次数</label>
-            <span class="info-value">{{ user.interview_count || 0 }}</span>
-          </div>
-
-          <div class="info-item">
-            <label>注册时间</label>
-            <span class="info-value">{{ user.created_at || '-' }}</span>
-          </div>
-
-          <div class="info-item">
-            <label>目标岗位</label>
-            <div v-if="user.target_positions && user.target_positions.length > 0" class="target-positions">
-              <span v-for="(position, index) in user.target_positions" :key="position.id" class="position-tag">
-                {{ position.name }}
-              </span>
-            </div>
-            <span v-else class="info-value">未选择目标岗位</span>
+            <label>已加入天数</label>
+            <span class="info-value">{{ joinedDays }} 天</span>
           </div>
         </div>
 
@@ -593,25 +585,6 @@ onMounted(() => {
   color: #1e293b;
   font-size: 1rem;
   font-weight: 500;
-}
-
-.target-positions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.position-tag {
-  background: #eef2ff;
-  color: #3730a3;
-  padding: 0.25rem 0.7rem;
-  border-radius: 999px;
-  font-size: 0.85rem;
-  border: 1px solid #c7d2fe;
-}
-
-.position-tag:hover {
-  background: #e0e7ff;
 }
 
 .logout-section {

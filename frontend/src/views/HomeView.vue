@@ -20,14 +20,25 @@ const menuItems = [
 
 const validMenuIds = menuItems.map(item => item.id)
 
-const setActiveMenu = (menuId: string) => {
+const setActiveMenu = async (menuId: string, syncRoute = false) => {
   const nextMenu = validMenuIds.includes(menuId) ? menuId : 'home'
   activeMenu.value = nextMenu
   localStorage.setItem('activeMenu', nextMenu)
+
+  if (syncRoute) {
+    const currentMenuFromQuery = typeof route.query.menu === 'string' ? route.query.menu : ''
+    const nextMenuQuery = nextMenu === 'home' ? '' : nextMenu
+    if (currentMenuFromQuery !== nextMenuQuery) {
+      await router.replace({
+        path: '/home',
+        query: nextMenuQuery ? { menu: nextMenuQuery } : {},
+      })
+    }
+  }
 }
 
 const handleMenuClick = (menuId: string) => {
-  setActiveMenu(menuId)
+  setActiveMenu(menuId, true)
 }
 
 const handleLogout = () => {
@@ -47,7 +58,11 @@ onMounted(() => {
   const menuFromQuery = typeof route.query.menu === 'string' ? route.query.menu : ''
   if (menuFromQuery) {
     setActiveMenu(menuFromQuery)
+    return
   }
+
+  const menuFromStorage = localStorage.getItem('activeMenu') || 'home'
+  setActiveMenu(menuFromStorage, true)
 })
 </script>
 

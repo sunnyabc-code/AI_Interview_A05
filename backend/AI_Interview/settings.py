@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     "evaluations",
     "reports",
     "recommendations",
+    "pathway",
     "learning",
     "user_projects",
 ]
