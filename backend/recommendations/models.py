@@ -106,3 +106,49 @@ class UserKnowledgeMatrics(models.Model):
 
     def __str__(self):
         return f'{self.interview_id}-{self.job_knowledge_id}'
+
+
+class VoiceLlmResult(models.Model):
+    interview = models.OneToOneField(
+        'interviews.Interview',
+        on_delete=models.DO_NOTHING,
+        db_column='interview_id',
+        related_name='voice_llm_result',
+    )
+
+    status = models.CharField(max_length=20)
+    overall_audio_score = models.DecimalField(max_digits=5, decimal_places=1)
+    speech_rate_and_rhythm_score = models.DecimalField(max_digits=5, decimal_places=1)
+    speech_rate_and_rhythm = models.TextField()
+    fluency_score = models.DecimalField(max_digits=5, decimal_places=1)
+    fluency = models.TextField()
+    confidence_and_voice_energy_score = models.DecimalField(max_digits=5, decimal_places=1)
+    confidence_and_voice_energy = models.TextField()
+    emotional_stability_and_tone_score = models.DecimalField(max_digits=5, decimal_places=1)
+    emotional_stability_and_tone = models.TextField()
+
+    strengths = models.TextField()
+    improvements = models.TextField()
+    position_communication_tips = models.TextField()
+    encouragement = models.TextField()
+
+    llm_model = models.CharField(max_length=120)
+    prompt_version = models.CharField(max_length=40)
+
+    raw_input_json = models.JSONField(default=dict)
+    raw_output_json = models.JSONField(default=dict)
+
+    generated_at = models.DateTimeField(null=True, blank=True)
+    error_message = models.TextField()
+    retry_count = models.IntegerField(default=0)
+    created_at = models.DateTimeField()
+    updated_at = models.DateTimeField()
+
+    class Meta:
+        db_table = 'voice_llm_results'
+        managed = False
+        verbose_name = '语音LLM分析结果'
+        verbose_name_plural = '语音LLM分析结果'
+
+    def __str__(self):
+        return f'{self.interview_id}-{self.status}'

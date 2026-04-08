@@ -1,3 +1,4 @@
+from django.db import DatabaseError
 from django.db.models import Avg
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
@@ -5,7 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
 from core.response import APIResponse
-from recommendations.models import UserKnowledgeMatrics
+from recommendations.models import UserKnowledgeMatrics, VoiceLlmResult
 from positions.models import JobPosition
 
 
@@ -13,6 +14,15 @@ def _safe_float(value):
 	if value is None:
 		return 0.0
 	return float(value)
+
+
+def _nullable_float(value):
+	if value is None:
+		return None
+	try:
+		return float(value)
+	except (TypeError, ValueError):
+		return None
 
 
 class KnowledgeFeedbackView(APIView):
@@ -175,5 +185,72 @@ class KnowledgeFeedbackDetailView(APIView):
 				'test_details': detail_items,
 			},
 			message='知识点详情获取成功',
+			code=200,
+		)
+
+
+class ExpressionAbilityOverviewView(APIView):
+	permission_classes = [IsAuthenticated]
+
+	@swagger_auto_schema(
+		tags=['Recommendation'],
+		operation_summary='表达能力总览数据',
+		operation_description='返回当前用户 voice_llm_results 原始记录，供前端聚合表达能力总览。',
+		security=[{'Bearer': []}],
+		responses={
+			200: openapi.Response('获取成功'),
+			401: openapi.Response('未登录'),
+		},
+	)
+	def get(self, request):
+		try:
+			records = list(
+				VoiceLlmResult.objects.select_related('interview')
+				.filter(interview__user=request.user)
+				.order_by('generated_at', 'created_at', 'id')
+			)
+		except DatabaseError:
+			# 兼容本地/测试环境尚未同步该表结构的情况，前端收到空数组即可进入空态。
+			return APIResponse.success(
+				data={'records': []},
+				message='voice_llm_results 表不可用，已返回空数据',
+				code=200,
+			)
+
+		payload = []
+		for row in records:
+			payload.append(
+				{
+					'id': row.id,
+					'interview_id': row.interview_id,
+					'status': row.status,
+					'overall_audio_score': _nullable_float(row.overall_audio_score),
+					'speech_rate_and_rhythm_score': _nullable_float(row.speech_rate_and_rhythm_score),
+					'speech_rate_and_rhythm': row.speech_rate_and_rhythm or '',
+					'fluency_score': _nullable_float(row.fluency_score),
+					'fluency': row.fluency or '',
+					'confidence_and_voice_energy_score': _nullable_float(row.confidence_and_voice_energy_score),
+					'confidence_and_voice_energy': row.confidence_and_voice_energy or '',
+					'emotional_stability_and_tone_score': _nullable_float(row.emotional_stability_and_tone_score),
+					'emotional_stability_and_tone': row.emotional_stability_and_tone or '',
+					'strengths': row.strengths or '',
+					'improvements': row.improvements or '',
+					'position_communication_tips': row.position_communication_tips or '',
+					'encouragement': row.encouragement or '',
+					'llm_model': row.llm_model or '',
+					'prompt_version': row.prompt_version or '',
+					'raw_input_json': row.raw_input_json or {},
+					'raw_output_json': row.raw_output_json or {},
+					'generated_at': row.generated_at,
+					'error_message': row.error_message or '',
+					'retry_count': row.retry_count,
+					'created_at': row.created_at,
+					'updated_at': row.updated_at,
+				}
+			)
+
+		return APIResponse.success(
+			data={'records': payload},
+			message='表达能力总览数据获取成功',
 			code=200,
 		)

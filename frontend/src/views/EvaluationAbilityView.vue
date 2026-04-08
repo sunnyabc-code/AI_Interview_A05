@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import type { CSSProperties } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/utils/api'
 import KnowledgePointDetailModal from '@/components/KnowledgePointDetailModal.vue'
+import AbilityTechnicalSummary from '@/components/AbilityTechnicalSummary.vue'
+import ExpressionAbilityOverview from '@/components/ExpressionAbilityOverview.vue'
 
 interface KnowledgePointSummary {
   knowledge_id: number
@@ -38,6 +41,8 @@ interface KnowledgeDetailData {
   test_details: KnowledgeDetailItem[]
 }
 
+type InsightFilter = 'all' | 'risk' | 'mid' | 'strong'
+
 const router = useRouter()
 
 const loading = ref(false)
@@ -48,6 +53,11 @@ const listData = ref<FeedbackListData | null>(null)
 const activePositionName = ref('')
 const detailVisible = ref(false)
 const selectedKnowledgeDetail = ref<KnowledgeDetailData | null>(null)
+const insightFilter = ref<InsightFilter>('all')
+const hoveredKnowledgeId = ref<number | null>(null)
+const mapPointerX = ref(0)
+const mapPointerY = ref(0)
+const mapActive = ref(false)
 
 const hasData = computed(() => (listData.value?.positions?.length || 0) > 0)
 
@@ -62,17 +72,8 @@ const currentPosition = computed(() => {
   return selected || positions[0]
 })
 
-const scoreWidth = (score: number) => `${Math.max(0, Math.min(100, score))}%`
-
 const averageScore = (knowledge: KnowledgePointSummary) => {
   return (knowledge.avg_logic + knowledge.avg_accuracy) / 2
-}
-
-const cardToneClass = (knowledge: KnowledgePointSummary) => {
-  const avg = averageScore(knowledge)
-  if (avg > 80) return 'card-strong'
-  if (avg > 50) return 'card-mid'
-  return 'card-risk'
 }
 
 const cardLabel = (knowledge: KnowledgePointSummary) => {
@@ -80,6 +81,98 @@ const cardLabel = (knowledge: KnowledgePointSummary) => {
   if (avg > 80) return '掌握稳定'
   if (avg > 50) return '仍可提升'
   return '重点补强'
+}
+
+const cardTone = (knowledge: KnowledgePointSummary): Exclude<InsightFilter, 'all'> => {
+  const avg = averageScore(knowledge)
+  if (avg > 80) return 'strong'
+  if (avg > 50) return 'mid'
+  return 'risk'
+}
+
+const masteryScore = (knowledge: KnowledgePointSummary) => {
+  return Math.max(0, Math.min(100, averageScore(knowledge)))
+}
+
+const nodeSize = (knowledge: KnowledgePointSummary) => {
+  const min = 34
+  const max = 68
+  const weakness = 1 - masteryScore(knowledge) / 100
+  return Math.round(min + weakness * (max - min))
+}
+
+const allKnowledgePoints = computed(() => currentPosition.value?.knowledge_points || [])
+
+const levelCount = computed(() => {
+  const stats = { risk: 0, mid: 0, strong: 0 }
+  allKnowledgePoints.value.forEach((item) => {
+    const tone = cardTone(item)
+    stats[tone] += 1
+  })
+  return stats
+})
+
+const visibleKnowledgePoints = computed(() => {
+  const source = [...allKnowledgePoints.value]
+  const filtered =
+    insightFilter.value === 'all'
+      ? source
+      : source.filter((item) => cardTone(item) === insightFilter.value)
+
+  return filtered.sort((a, b) => masteryScore(a) - masteryScore(b))
+})
+
+const hoveredKnowledge = computed(() => {
+  if (!hoveredKnowledgeId.value) {
+    return null
+  }
+  return allKnowledgePoints.value.find((item) => item.knowledge_id === hoveredKnowledgeId.value) || null
+})
+
+const knowledgeNodeStyle = (knowledge: KnowledgePointSummary, index: number): CSSProperties => {
+  const mastery = masteryScore(knowledge)
+  const size = nodeSize(knowledge)
+  const x = Math.max(8, Math.min(92, knowledge.avg_accuracy))
+  const y = Math.max(8, Math.min(92, 100 - knowledge.avg_logic))
+  const hue = Math.round(8 + (mastery / 100) * 130)
+  const sx = Math.sin((index + 1) * 1.73)
+  const sy = Math.cos((index + 1) * 1.37)
+  const intensity = mapActive.value ? 5 : 0
+  const dx = mapPointerX.value * sx * intensity
+  const dy = mapPointerY.value * sy * intensity
+  const pulse = mastery < 55 ? 'knowledge-pulse 2.9s ease-in-out infinite' : 'none'
+  return {
+    left: `${x}%`,
+    top: `${y}%`,
+    width: `${size}px`,
+    height: `${size}px`,
+    transform: `translate(calc(-50% + ${dx.toFixed(2)}px), calc(-50% + ${dy.toFixed(2)}px))`,
+    background: `radial-gradient(circle at 30% 25%, hsl(${hue} 95% 96%), hsl(${hue} 82% 84%))`,
+    borderColor: `hsl(${hue} 66% 44%)`,
+    boxShadow: `0 10px 20px hsla(${hue}, 68%, 35%, 0.23)`,
+    animationDelay: `${Math.min(index * 28, 420)}ms`,
+    animation: pulse,
+  }
+}
+
+const onKnowledgeMapMove = (event: MouseEvent) => {
+  const el = event.currentTarget as HTMLElement
+  const rect = el.getBoundingClientRect()
+  if (!rect.width || !rect.height) {
+    return
+  }
+  const nx = ((event.clientX - rect.left) / rect.width) * 2 - 1
+  const ny = ((event.clientY - rect.top) / rect.height) * 2 - 1
+  mapPointerX.value = Math.max(-1, Math.min(1, nx))
+  mapPointerY.value = Math.max(-1, Math.min(1, ny))
+  mapActive.value = true
+}
+
+const onKnowledgeMapLeave = () => {
+  mapActive.value = false
+  mapPointerX.value = 0
+  mapPointerY.value = 0
+  hoveredKnowledgeId.value = null
 }
 
 const goBack = () => {
@@ -111,6 +204,7 @@ const fetchKnowledgeList = async () => {
 
 const switchPosition = (name: string) => {
   activePositionName.value = name
+  insightFilter.value = 'all'
 }
 
 const openKnowledgeDetail = async (knowledge: KnowledgePointSummary) => {
@@ -145,8 +239,8 @@ onMounted(() => {
     <header class="topbar">
       <button type="button" class="back-btn" @click="goBack">返回</button>
       <div class="title-block">
-        <h1>知识点掌握总览</h1>
-        <p>先切换岗位，再查看知识点卡片颜色和双分数，点击卡片弹窗看详细面试记录。</p>
+        <h1>个人能力总览</h1>
+        <p>先切换岗位，再查看知识点掌握分布，点击节点弹窗查看详细面试记录。</p>
       </div>
       <button type="button" class="refresh-btn" :disabled="loading" @click="fetchKnowledgeList">
         {{ loading ? '刷新中...' : '刷新数据' }}
@@ -155,8 +249,10 @@ onMounted(() => {
 
     <div v-if="errorMessage" class="error-banner">{{ errorMessage }}</div>
 
-    <section v-if="hasData" class="main-panel">
-      <div class="position-tabs">
+    <section class="main-panel">
+      <AbilityTechnicalSummary />
+
+      <div v-if="hasData" class="position-tabs">
         <button
           v-for="position in positionTabs"
           :key="position.position_name"
@@ -168,42 +264,94 @@ onMounted(() => {
         </button>
       </div>
 
-      <div v-if="currentPosition" class="knowledge-grid">
-        <article
-          v-for="knowledge in currentPosition.knowledge_points"
-          :key="knowledge.knowledge_id"
-          :class="['knowledge-card', cardToneClass(knowledge)]"
-          @click="openKnowledgeDetail(knowledge)"
-        >
-          <div class="card-head">
-            <h3>{{ knowledge.knowledge_name }}</h3>
-            <span class="status-pill">{{ cardLabel(knowledge) }}</span>
+      <div v-if="currentPosition" class="knowledge-grid" @mousemove="onKnowledgeMapMove" @mouseleave="onKnowledgeMapLeave">
+        <div class="section-title-block">
+          <h2>第二部分 · 知识点掌握情况</h2>
+          <p>颜色越红越需要补强，越绿越稳定；节点越大表示当前掌握越薄弱。</p>
+        </div>
+
+        <div class="knowledge-toolbar">
+          <div class="filter-group">
+            <button
+              type="button"
+              :class="['filter-chip', { active: insightFilter === 'all' }]"
+              @click="insightFilter = 'all'"
+            >
+              全部 {{ allKnowledgePoints.length }}
+            </button>
+            <button
+              type="button"
+              :class="['filter-chip', 'risk-chip', { active: insightFilter === 'risk' }]"
+              @click="insightFilter = 'risk'"
+            >
+              重点补强 {{ levelCount.risk }}
+            </button>
+            <button
+              type="button"
+              :class="['filter-chip', 'mid-chip', { active: insightFilter === 'mid' }]"
+              @click="insightFilter = 'mid'"
+            >
+              仍可提升 {{ levelCount.mid }}
+            </button>
+            <button
+              type="button"
+              :class="['filter-chip', 'strong-chip', { active: insightFilter === 'strong' }]"
+              @click="insightFilter = 'strong'"
+            >
+              掌握稳定 {{ levelCount.strong }}
+            </button>
           </div>
 
-          <p class="test-count">测试次数：{{ knowledge.test_count }}</p>
+        </div>
 
-          <div class="score-row">
-            <div class="score-meta">
-              <span>逻辑平均分</span>
-              <strong>{{ knowledge.avg_logic }}</strong>
-            </div>
-            <div class="score-track"><div class="score-fill logic-fill" :style="{ width: scoreWidth(knowledge.avg_logic) }" /></div>
-          </div>
+        <div class="knowledge-map" @mousemove="onKnowledgeMapMove" @mouseleave="onKnowledgeMapLeave">
+          <div class="map-grid" />
+          <div class="map-axis map-axis-x">准确性 →</div>
+          <div class="map-axis map-axis-y">逻辑性 ↑</div>
+          <button
+            v-for="(knowledge, index) in visibleKnowledgePoints"
+            :key="knowledge.knowledge_id"
+            type="button"
+            class="knowledge-node"
+            :style="knowledgeNodeStyle(knowledge, index)"
+            :title="knowledge.knowledge_name"
+            @mouseenter="hoveredKnowledgeId = knowledge.knowledge_id"
+            @mouseleave="hoveredKnowledgeId = null"
+            @focus="hoveredKnowledgeId = knowledge.knowledge_id"
+            @blur="hoveredKnowledgeId = null"
+            @click="openKnowledgeDetail(knowledge)"
+          >
+            <span class="node-score">{{ masteryScore(knowledge).toFixed(0) }}</span>
+          </button>
+        </div>
 
-          <div class="score-row">
-            <div class="score-meta">
-              <span>准确平均分</span>
-              <strong>{{ knowledge.avg_accuracy }}</strong>
-            </div>
-            <div class="score-track"><div class="score-fill accuracy-fill" :style="{ width: scoreWidth(knowledge.avg_accuracy) }" /></div>
+        <div class="hover-panel" v-if="hoveredKnowledge">
+          <div class="hover-head">
+            <h3>{{ hoveredKnowledge.knowledge_name }}</h3>
+            <span class="hover-tag">{{ cardLabel(hoveredKnowledge) }}</span>
           </div>
-        </article>
+          <div class="hover-metrics">
+            <span>逻辑 {{ hoveredKnowledge.avg_logic }}</span>
+            <span>准确 {{ hoveredKnowledge.avg_accuracy }}</span>
+            <span>测试 {{ hoveredKnowledge.test_count }} 次</span>
+          </div>
+          <p>点击该节点查看该知识点的完整面试详情。</p>
+        </div>
+        <div class="hover-panel empty-hover" v-else>
+          <h3>知识点掌握地图</h3>
+          <p>横轴是准确性，纵轴是逻辑性。颜色越绿越稳定，越红越需要补强。节点越大表示掌握越薄弱。</p>
+          <p class="helper-tip">先切换筛选分组，再将鼠标移到节点上查看细节。</p>
+        </div>
       </div>
+
+      <section v-if="!loading && !hasData" class="empty-panel">
+        <h2>第二部分 · 暂无知识点评分</h2>
+        <p>完成几次面试后，这里会自动展示岗位下的知识点掌握情况。</p>
+      </section>
     </section>
 
-    <section v-if="!loading && !hasData" class="empty-panel">
-      <h2>暂无知识点评分</h2>
-      <p>完成几次面试后，这里会自动展示岗位下的知识点掌握情况。</p>
+    <section class="expression-panel">
+      <ExpressionAbilityOverview title="第三部分 · 表达能力总览" />
     </section>
 
     <KnowledgePointDetailModal
@@ -277,6 +425,10 @@ onMounted(() => {
   padding: 1rem;
 }
 
+.expression-panel {
+  margin-top: 0.9rem;
+}
+
 .position-tabs {
   display: flex;
   flex-wrap: wrap;
@@ -301,102 +453,215 @@ onMounted(() => {
 
 .knowledge-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  grid-template-columns: 1fr;
   gap: 0.8rem;
 }
 
-.knowledge-card {
-  border-radius: 12px;
-  padding: 0.78rem;
-  border: 1px solid #dbeafe;
-  cursor: pointer;
-  transition: transform 0.18s ease, box-shadow 0.2s ease;
+.section-title-block h2 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 1.1rem;
 }
 
-.knowledge-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.1);
+.section-title-block p {
+  margin: 0.2rem 0 0;
+  color: #475569;
+  font-size: 0.86rem;
 }
 
-.card-strong {
-  background: linear-gradient(145deg, #ecfdf5, #d1fae5);
-  border-color: #6ee7b7;
-}
-
-.card-mid {
-  background: linear-gradient(145deg, #fff7ed, #ffedd5);
-  border-color: #fdba74;
-}
-
-.card-risk {
-  background: linear-gradient(145deg, #fef2f2, #fee2e2);
-  border-color: #fca5a5;
-}
-
-.card-head {
+.knowledge-toolbar {
   display: flex;
   justify-content: space-between;
-  align-items: start;
-  gap: 0.65rem;
+  align-items: center;
+  gap: 0.8rem;
+  flex-wrap: wrap;
 }
 
-.card-head h3 {
+.filter-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.filter-chip {
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  border-radius: 999px;
+  padding: 0.28rem 0.68rem;
+  cursor: pointer;
+  font-size: 0.78rem;
+}
+
+.filter-chip.active {
+  border-color: #2563eb;
+  color: #1d4ed8;
+  background: #eff6ff;
+}
+
+.risk-chip.active {
+  border-color: #dc2626;
+  color: #991b1b;
+  background: #fef2f2;
+}
+
+.mid-chip.active {
+  border-color: #d97706;
+  color: #92400e;
+  background: #fffbeb;
+}
+
+.strong-chip.active {
+  border-color: #16a34a;
+  color: #166534;
+  background: #f0fdf4;
+}
+
+
+.knowledge-map {
+  position: relative;
+  height: 430px;
+  border-radius: 16px;
+  border: 1px solid #dbeafe;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 14% 15%, rgba(239, 68, 68, 0.14), transparent 42%),
+    radial-gradient(circle at 86% 18%, rgba(16, 185, 129, 0.12), transparent 46%),
+    linear-gradient(145deg, #f8fafc, #eef2ff 55%, #ecfdf5);
+}
+
+.map-grid {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(to right, rgba(148, 163, 184, 0.22) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(148, 163, 184, 0.22) 1px, transparent 1px);
+  background-size: 20% 20%;
+  pointer-events: none;
+}
+
+.map-axis {
+  position: absolute;
+  font-size: 0.76rem;
+  color: #475569;
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid rgba(148, 163, 184, 0.38);
+  border-radius: 999px;
+  padding: 0.15rem 0.5rem;
+  pointer-events: none;
+}
+
+.map-axis-x {
+  right: 0.6rem;
+  bottom: 0.6rem;
+}
+
+.map-axis-y {
+  left: 0.6rem;
+  top: 0.6rem;
+}
+
+.knowledge-node {
+  position: absolute;
+  border-radius: 999px;
+  border: 2px solid transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #0f172a;
+  font-weight: 800;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  animation: node-enter 0.45s ease-out both;
+}
+
+.knowledge-node:hover {
+  transform: translate(-50%, -50%) scale(1.16) !important;
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.24) !important;
+  z-index: 8;
+}
+
+.node-score {
+  font-size: 0.82rem;
+}
+
+.hover-panel {
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 14px;
+  padding: 0.86rem 0.96rem;
+  background: linear-gradient(140deg, rgba(255, 255, 255, 0.9), rgba(248, 250, 252, 0.86));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65), 0 8px 20px rgba(15, 23, 42, 0.06);
+  backdrop-filter: blur(4px);
+}
+
+.hover-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.hover-head h3,
+.empty-hover h3 {
   margin: 0;
   color: #0f172a;
   font-size: 1rem;
 }
 
-.status-pill {
-  display: inline-block;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.75);
-  border: 1px solid rgba(148, 163, 184, 0.45);
-  color: #334155;
+.hover-tag {
   font-size: 0.72rem;
-  padding: 0.12rem 0.48rem;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  padding: 0.14rem 0.52rem;
+  color: #334155;
+  background: rgba(255, 255, 255, 0.72);
   white-space: nowrap;
 }
 
-.test-count {
-  margin: 0.52rem 0 0;
-  color: #334155;
+.hover-metrics {
+  display: flex;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+  margin-top: 0.42rem;
+  color: #1f2937;
   font-size: 0.84rem;
 }
 
-.score-row {
-  margin-top: 0.58rem;
+.hover-panel p {
+  margin: 0.42rem 0 0;
+  color: #475569;
+  font-size: 0.85rem;
+  line-height: 1.45;
 }
 
-.score-meta {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 0.25rem;
-  color: #1f2937;
-  font-size: 0.82rem;
+.empty-hover {
+  border-style: dashed;
 }
 
-.score-meta strong {
-  color: #0f172a;
+.helper-tip {
+  color: #1d4ed8 !important;
+  font-weight: 600;
 }
 
-.score-track {
-  width: 100%;
-  height: 8px;
-  border-radius: 999px;
-  background: rgba(226, 232, 240, 0.86);
-  overflow: hidden;
+@keyframes node-enter {
+  from {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% + 8px)) scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
 }
 
-.score-fill {
-  height: 100%;
-}
-
-.logic-fill {
-  background: linear-gradient(90deg, #22c55e, #16a34a);
-}
-
-.accuracy-fill {
-  background: linear-gradient(90deg, #3b82f6, #1d4ed8);
+@keyframes knowledge-pulse {
+  0%,
+  100% {
+    box-shadow: 0 10px 20px rgba(239, 68, 68, 0.18);
+  }
+  50% {
+    box-shadow: 0 14px 30px rgba(239, 68, 68, 0.32);
+  }
 }
 
 .empty-panel {
@@ -422,5 +687,15 @@ onMounted(() => {
     grid-template-columns: 1fr;
     align-items: start;
   }
+
+  .knowledge-map {
+    height: 380px;
+  }
+
+  .hover-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
 }
 </style>
