@@ -607,9 +607,10 @@ class InterviewNextQuestionView(APIView):
             "category", "question"
         )
         for r in rounds_qs.order_by("round_number"):
-            if not is_effective_user_answer(r.user_answer):
+            # next-question 仅拦截空回答；语音占位值 "1" 允许先推进到下一题。
+            if not (r.user_answer or "").strip():
                 return APIResponse.error(
-                    message="请先完成有效作答后再获取下一题；语音模式需等待转写完成，勿仅保留占位回答",
+                    message="请先提交回答后再获取下一题",
                     code=400,
                 )
 
