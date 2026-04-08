@@ -771,6 +771,8 @@ const loadInterviewInfo = async () => {
       }
     }
 
+    let hasUnfinishedRound = false
+
     if (roundsResp.ok) {
       const roundsData = await roundsResp.json()
       const rounds = roundsData?.data || []
@@ -779,6 +781,7 @@ const loadInterviewInfo = async () => {
 
         const unfinished = rounds.find((r: any) => !r.end_time)
         if (unfinished) {
+          hasUnfinishedRound = true
           currentRoundId.value = unfinished.round_id || null
           currentRoundNumber.value = unfinished.round_number || currentRoundNumber.value
           questionText.value = unfinished.question_content || questionText.value
@@ -787,6 +790,28 @@ const loadInterviewInfo = async () => {
     }
 
     isPaused.value = interview.value?.status === 'paused'
+
+    if (interview.value?.status === 'pending') {
+      try {
+        const startData = await postJson(`${API_BASE_URL}/api/v1/interviews/${interviewId.value}/start/`)
+        interview.value = { ...interview.value, ...startData.data, status: 'in_progress' }
+      } catch (err) {
+        addLog(`自动开始面试失败: ${errorMessage(err)}`)
+      }
+    }
+
+    const shouldFetchFirstQuestion =
+      !hasUnfinishedRound &&
+      !currentRoundId.value &&
+      ['in_progress', 'pending'].includes(interview.value?.status || '')
+
+    if (shouldFetchFirstQuestion) {
+      roundProgressText.value = '正在获取第一题...'
+      const ok = await fetchNextQuestion()
+      if (ok && !isPaused.value) {
+        await playQuestion()
+      }
+    }
   } catch {
     infoError.value = '面试信息加载失败，已使用默认展示。'
   }
