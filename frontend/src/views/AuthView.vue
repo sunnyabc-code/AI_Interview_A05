@@ -248,7 +248,7 @@ const handleResetPassword = async () => {
         {{ success }}
       </div>
 
-      <div v-if="activeTab === 'login'" class="auth-form">
+      <form v-if="activeTab === 'login'" class="auth-form" @submit.prevent="handleLogin">
         <h2>登录</h2>
         
         <div class="login-type-selector">
@@ -289,13 +289,13 @@ const handleResetPassword = async () => {
         </div>
 
         <button 
+          type="submit"
           class="auth-btn" 
-          @click="handleLogin"
           :disabled="loading"
         >
           {{ loading ? '登录中...' : '登录' }}
         </button>
-      </div>
+      </form>
 
       <div v-if="activeTab === 'register'" class="auth-form">
         <h2>注册</h2>

@@ -24,15 +24,16 @@ const {
 
 const endDetector = useAnswerEndDetector({
   minSpeechSeconds: 3,
-  silenceThresholdSeconds: 2,
+  silenceThresholdSeconds: 10,
   autoStopOnSilence: false,
-  maxAnswerSeconds: 120,
+  maxAnswerSeconds: 300,
   volumeThreshold: 0.02,
 })
 
 const interview = ref<any>(null)
 const currentRoundNumber = ref(1)
 const currentRoundId = ref<number | null>(null)
+const currentQuestionCategory = ref('')
 const infoError = ref('')
 const questionText = ref('')
 const fallbackAnswerText = ref('')
@@ -43,6 +44,7 @@ const isPaused = ref(false)
 const isSilenceEnding = ref(false)
 const silenceFinalizeCountdown = ref(3)
 const roundProgressText = ref('')
+const showInterviewEndedNotice = ref(false)
 const showAutoStartPrompt = ref(false)
 const autoStartCountdown = ref(3)
 const isAdvancingRound = ref(false)
@@ -142,7 +144,7 @@ const startAutoCountdown = () => {
 
   cancelAutoStartPrompt()
   showAutoStartPrompt.value = true
-  autoStartCountdown.value = 3
+  autoStartCountdown.value = 5
   addLog('即将开始录音，可选择立即开始或稍后开始。')
 
   autoStartTimer = window.setInterval(async () => {
@@ -227,8 +229,18 @@ const sceneStatusText = computed(() => {
   }
   return map[sceneStatus.value]
 })
+const questionCategoryTextMap: Record<string, string> = {
+  technical: '知识点题',
+  project: '项目题',
+  scenario: '场景题',
+}
 const currentRoundLabel = computed(() => {
   return currentRoundNumber.value ? `第 ${currentRoundNumber.value} 轮` : '等待生成'
+})
+const currentQuestionTypeText = computed(() => {
+  const raw = (currentQuestionCategory.value || '').trim()
+  if (!raw) return '待生成'
+  return questionCategoryTextMap[raw] || raw
 })
 const interviewerWaveBars = computed(() => {
   const baseBars = isSpeaking.value ? [16, 24, 20, 28, 18] : [10, 14, 12, 15, 11]
@@ -252,9 +264,19 @@ const candidateWaveActive = computed(() => {
 const speechSecondsText = computed(() => (endDetector.speechMs.value / 1000).toFixed(1))
 const silenceSecondsText = computed(() => (endDetector.silenceMs.value / 1000).toFixed(1))
 const elapsedSecondsText = computed(() => (endDetector.elapsedMs.value / 1000).toFixed(1))
+const remainingAnswerSeconds = computed(() => {
+  return Math.max(endDetector.maxAnswerSeconds - Math.floor(endDetector.elapsedMs.value / 1000), 0)
+})
 const remainingAnswerSecondsText = computed(() => {
-  const left = Math.max(endDetector.maxAnswerSeconds - Math.floor(endDetector.elapsedMs.value / 1000), 0)
-  return `${left}s`
+  return `${remainingAnswerSeconds.value}s`
+})
+const isAnswerTimeRunningOut = computed(() => {
+  if (recordingState.value !== 'recording') return false
+  return remainingAnswerSeconds.value > 0 && remainingAnswerSeconds.value <= 10
+})
+const answerTimeWarningText = computed(() => {
+  if (!isAnswerTimeRunningOut.value) return ''
+  return `答题时间快没有了，请尽快收尾（剩余 ${remainingAnswerSeconds.value} 秒）`
 })
 
 const recordingGuideText = computed(() => {
@@ -604,6 +626,7 @@ const fetchNextQuestion = async () => {
       questionText.value = data.data.question_content || ''
       currentRoundId.value = data.data.round_id || null
       currentRoundNumber.value = data.data.round_number || currentRoundNumber.value
+      currentQuestionCategory.value = data.data.category_name || data.data.category || ''
       roundProgressText.value = ''
       addLog(`已获取第 ${currentRoundNumber.value} 轮题目。`)
       return true
@@ -611,6 +634,8 @@ const fetchNextQuestion = async () => {
 
     if (data.code === 200 && data.data?.status === 'completed') {
       roundProgressText.value = ''
+      currentQuestionCategory.value = ''
+      showInterviewEndedNotice.value = true
       addLog('面试已完成，无下一题。')
       interview.value = { ...interview.value, ...data.data }
       return false
@@ -707,13 +732,17 @@ const endInterview = async () => {
   try {
     const data = await postJson(`${API_BASE_URL}/api/v1/interviews/${interviewId.value}/end/`)
     interview.value = { ...interview.value, ...data.data, status: 'completed' }
-    addLog('面试结束，进入评估页。')
-    router.push(`/interview/${interviewId.value}/evaluation`)
+    showInterviewEndedNotice.value = true
+    addLog('面试结束，结果报告生成中。')
     return
   } catch (err) {
     addLog(`结束面试接口失败: ${errorMessage(err)}，将直接返回列表。`)
   }
 
+  router.push('/home?menu=interview')
+}
+
+const backToInterviewList = () => {
   router.push('/home?menu=interview')
 }
 
@@ -786,6 +815,7 @@ const loadInterviewInfo = async () => {
           hasUnfinishedRound = true
           currentRoundId.value = unfinished.round_id || null
           currentRoundNumber.value = unfinished.round_number || currentRoundNumber.value
+          currentQuestionCategory.value = unfinished.category_name || unfinished.category || ''
           questionText.value = unfinished.question_content || questionText.value
         }
       }
@@ -832,7 +862,15 @@ loadInterviewInfo()
 </script>
 
 <template>
-  <div class="voice-page">
+  <div v-if="showInterviewEndedNotice" class="ended-screen">
+    <div class="ended-card">
+      <h1>当前面试已结束</h1>
+      <p>结果报告正在生成中，请稍后在评估报告中查看。</p>
+      <button class="btn primary" @click="backToInterviewList">返回面试列表</button>
+    </div>
+  </div>
+
+  <div v-else class="voice-page">
     <aside class="voice-sidebar">
       <div class="sidebar-hero">
         <div class="sidebar-hero-top">
@@ -860,8 +898,12 @@ loadInterviewInfo()
             <strong>{{ currentRoundLabel }}</strong>
           </div>
           <div class="status-item">
+            <span class="status-label">题目类型</span>
+            <strong>{{ currentQuestionTypeText }}</strong>
+          </div>
+          <div class="status-item">
             <span class="status-label">总轮次</span>
-            <strong>{{ interview?.total_rounds || 0 }} 轮</strong>
+            <strong>{{ (interview && interview.total_rounds) || 0 }} 轮</strong>
           </div>
           <div class="status-item">
             <span class="status-label">剩余答题</span>
@@ -952,6 +994,10 @@ loadInterviewInfo()
         <div v-if="recordingGuideSubText" class="guide-sub">{{ recordingGuideSubText }}</div>
       </div>
 
+      <div v-if="isAnswerTimeRunningOut" class="time-warning">
+        {{ answerTimeWarningText }}
+      </div>
+
       <div v-if="roundProgressText" class="round-progress">
         {{ roundProgressText }}
       </div>
@@ -1031,6 +1077,44 @@ loadInterviewInfo()
   display: grid;
   grid-template-columns: 332px minmax(0, 1fr);
   gap: 16px;
+}
+
+.ended-screen {
+  min-height: 100dvh;
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(circle at top left, rgba(102, 126, 234, 0.14), transparent 34%),
+    radial-gradient(circle at top right, rgba(15, 118, 110, 0.12), transparent 28%),
+    #f5f7fb;
+}
+
+.ended-card {
+  width: min(560px, 100%);
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 20px;
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.08);
+  padding: 28px;
+  text-align: center;
+}
+
+.ended-card h1 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 30px;
+}
+
+.ended-card p {
+  margin: 14px 0 0;
+  color: #475569;
+  font-size: 16px;
+}
+
+.ended-card .btn {
+  margin-top: 20px;
 }
 
 .voice-sidebar,
@@ -1392,6 +1476,16 @@ loadInterviewInfo()
   padding: 10px;
   color: #1d4ed8;
   font-weight: 600;
+}
+
+.time-warning {
+  margin-top: 10px;
+  border: 1px solid #f59e0b;
+  background: #fffbeb;
+  border-radius: 8px;
+  padding: 10px;
+  color: #b45309;
+  font-weight: 700;
 }
 
 .question-title-row {

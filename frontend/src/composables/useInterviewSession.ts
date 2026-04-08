@@ -22,11 +22,10 @@ export function useInterviewSession() {
   const countdownInterval = ref<number | null>(null)
   const VOICE_PLACEHOLDER_ANSWER = '1'
 
-  /** 与后端 is_effective_user_answer 一致：空、纯空白、语音占位「1」均视为未有效作答 */
+  /** 获取下一题时：仅空回答视为未作答；语音占位「1」允许继续推进 */
   const isEffectiveUserAnswer = (userAnswer: unknown) => {
     const s = String(userAnswer ?? '').trim()
     if (!s) return false
-    if (s === VOICE_PLACEHOLDER_ANSWER) return false
     return true
   }
 
