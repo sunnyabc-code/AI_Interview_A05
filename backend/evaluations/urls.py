@@ -3,6 +3,16 @@ from evaluations import views
 
 urlpatterns = [
     path(
+        "interviews/<int:interview_id>/voice-llm-result/",
+        views.InterviewVoiceLLMResultView.as_view(),
+        name="interview_voice_llm_result",
+    ),
+    path(
+        "interviews/<int:interview_id>/voice-llm-result/run/",
+        views.InterviewVoiceLLMResultRunView.as_view(),
+        name="interview_voice_llm_result_run",
+    ),
+    path(
         "difficulty-configs/",
         views.DifficultyConfigListView.as_view(),
         name="difficulty_config_list",

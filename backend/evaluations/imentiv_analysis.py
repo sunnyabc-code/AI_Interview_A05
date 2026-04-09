@@ -31,14 +31,21 @@ class ImentivAnalysisService:
         if not file_bytes:
             raise ImentivAnalysisError("音频文件为空，无法进行 iMentiv 分析")
 
-        submit_payload = self.client.submit_audio(
-            file_name=audio_obj.file_name or "audio.wav",
-            file_bytes=file_bytes,
-            mime_type=audio_obj.mime_type or "audio/wav",
-            language=getattr(settings, "IMENTIV_LANGUAGE", "zh"),
-            title=self._build_submit_title(audio_obj),
-            description=self._build_submit_description(audio_obj),
-        )
+        try:
+            submit_payload = self.client.submit_audio(
+                file_name=audio_obj.file_name or "audio.wav",
+                file_bytes=file_bytes,
+                mime_type=audio_obj.mime_type or "audio/wav",
+                language=getattr(settings, "IMENTIV_LANGUAGE", "zh"),
+                title=self._build_submit_title(audio_obj),
+                description=self._build_submit_description(audio_obj),
+            )
+        except ImentivClientError as exc:
+            if getattr(exc, "status_code", None) == 422:
+                raise ImentivAnalysisError(
+                    f"iMentiv 参数校验失败(422): {getattr(exc, 'detail', '') or str(exc)}"
+                ) from exc
+            raise
 
         audio_id = submit_payload.get("id")
         if not audio_id:
@@ -79,21 +86,11 @@ class ImentivAnalysisService:
 
     def _build_submit_title(self, audio_obj) -> str:
         round_obj = getattr(audio_obj, "round", None)
-        interview_obj = getattr(round_obj, "interview", None) if round_obj else None
+        round_id = getattr(round_obj, "id", None)
+        if round_id is not None:
+            return str(round_id)
 
-        candidates = [
-            getattr(round_obj, "question_content", ""),
-            getattr(interview_obj, "name", ""),
-            getattr(audio_obj, "file_name", ""),
-        ]
-
-        for raw in candidates:
-            if isinstance(raw, str):
-                text = raw.strip()
-                if text:
-                    return text[:200]
-
-        return f"interview-audio-{audio_obj.id}"
+        return f"audio-{audio_obj.id}"
 
     def _build_submit_description(self, audio_obj) -> str:
         round_obj = getattr(audio_obj, "round", None)

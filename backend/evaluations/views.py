@@ -5,8 +5,8 @@ from drf_yasg import openapi
 from django.db import transaction
 
 from core.response import APIResponse
-from evaluations.models import DifficultyConfig, VoiceAnalysis
-from interviews.models import InterviewRoundAudio, InterviewRound
+from evaluations.models import DifficultyConfig, VoiceAnalysis, VoiceLLMResult
+from interviews.models import Interview, InterviewRoundAudio, InterviewRound
 from evaluations.tasks import analyze_imentiv_audio_task
 
 from evaluations.audio_analysis import (
@@ -14,6 +14,136 @@ from evaluations.audio_analysis import (
     AudioAnalysisService,
     mark_audio_analysis_failed,
 )
+
+
+class InterviewVoiceLLMResultView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        tags=["Evaluation"],
+        operation_summary="获取面试音频大模型总结",
+        operation_description="根据 interview_id 获取该场面试的音频大模型总结结果。",
+        security=[{"Bearer": []}],
+        responses={200: openapi.Response("查询成功")},
+    )
+    def get(self, request, interview_id):
+        interview = Interview.objects.filter(id=interview_id, user=request.user).first()
+        if not interview:
+            return APIResponse.error(message="面试不存在或无权限", code=404)
+
+        result = VoiceLLMResult.objects.filter(interview_id=interview_id).first()
+        if not result:
+            return APIResponse.success(
+                data={"interview_id": interview_id, "voice_llm_result": None},
+                message="该面试尚未生成音频大模型总结",
+                code=200,
+            )
+
+        return APIResponse.success(
+            data={
+                "interview_id": interview_id,
+                "voice_llm_result": {
+                    "id": result.id,
+                    "status": result.status,
+                    "overall_audio_score": result.overall_audio_score,
+                    "speech_rate_and_rhythm_score": result.speech_rate_and_rhythm_score,
+                    "speech_rate_and_rhythm": result.speech_rate_and_rhythm,
+                    "fluency_score": result.fluency_score,
+                    "fluency": result.fluency,
+                    "confidence_and_voice_energy_score": result.confidence_and_voice_energy_score,
+                    "confidence_and_voice_energy": result.confidence_and_voice_energy,
+                    "emotional_stability_and_tone_score": result.emotional_stability_and_tone_score,
+                    "emotional_stability_and_tone": result.emotional_stability_and_tone,
+                    "strengths": result.strengths,
+                    "improvements": result.improvements,
+                    "position_communication_tips": result.position_communication_tips,
+                    "encouragement": result.encouragement,
+                    "llm_model": result.llm_model,
+                    "prompt_version": result.prompt_version,
+                    "generated_at": result.generated_at,
+                    "error_message": result.error_message,
+                    "retry_count": result.retry_count,
+                    "created_at": result.created_at,
+                    "updated_at": result.updated_at,
+                },
+            },
+            message="查询成功",
+            code=200,
+        )
+
+
+class InterviewVoiceLLMResultRunView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        tags=["Evaluation"],
+        operation_summary="手动触发面试音频大模型总结",
+        operation_description="根据 interview_id 手动触发 voice_llm_result 生成，支持 force 重算。",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "force": openapi.Schema(
+                    type=openapi.TYPE_BOOLEAN,
+                    description="是否强制重算（true 时即使已有成功结果也会重算）",
+                    default=False,
+                ),
+            },
+        ),
+        security=[{"Bearer": []}],
+        responses={200: openapi.Response("触发成功")},
+    )
+    def post(self, request, interview_id):
+        interview = Interview.objects.filter(id=interview_id, user=request.user).first()
+        if not interview:
+            return APIResponse.error(message="面试不存在或无权限", code=404)
+
+        force = bool(request.data.get("force", False))
+        existing = VoiceLLMResult.objects.filter(interview_id=interview_id).first()
+
+        if existing and existing.status == "running":
+            return APIResponse.error(message="该面试的音频总结正在生成中", code=409)
+
+        if existing and existing.status == "success" and not force:
+            return APIResponse.success(
+                data={
+                    "interview_id": interview_id,
+                    "voice_llm_result_id": existing.id,
+                    "status": existing.status,
+                },
+                message="已存在成功结果；如需重算请传 force=true",
+                code=200,
+            )
+
+        try:
+            from evaluations.voice_llm_result_service import (
+                VoiceLLMResultServiceError,
+                generate_interview_voice_llm_result,
+            )
+
+            result = generate_interview_voice_llm_result(interview_id)
+        except VoiceLLMResultServiceError as exc:
+            return APIResponse.error(
+                message="音频大模型总结生成失败",
+                code=400,
+                errors={"detail": str(exc)},
+            )
+        except Exception as exc:  # noqa: BLE001
+            return APIResponse.error(
+                message="音频大模型总结生成失败",
+                code=500,
+                errors={"detail": str(exc)},
+            )
+
+        return APIResponse.success(
+            data={
+                "interview_id": interview_id,
+                "voice_llm_result_id": result.id,
+                "status": result.status,
+                "generated_at": result.generated_at,
+            },
+            message="音频大模型总结生成成功",
+            code=200,
+        )
 
 
 class DifficultyConfigListView(APIView):

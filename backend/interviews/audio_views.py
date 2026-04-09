@@ -17,6 +17,11 @@ from rest_framework.views import APIView
 
 from core.asr_transcriber import ASRTranscriptionError, transcribe_audio_file
 from core.response import APIResponse
+from evaluations.audio_analysis import (
+    AudioAnalysisError,
+    AudioAnalysisService,
+    mark_audio_analysis_failed,
+)
 from interviews.models import Interview, InterviewRound, InterviewRoundAudio
 from interviews.serializers import (
     InterviewRoundAudioUploadRequestSerializer,
@@ -25,6 +30,9 @@ from interviews.serializers import (
 
 
 _ASR_EXECUTOR = ThreadPoolExecutor(max_workers=2, thread_name_prefix="asr-worker")
+_ANALYSIS_EXECUTOR = ThreadPoolExecutor(
+    max_workers=2, thread_name_prefix="analysis-worker"
+)
 
 
 def _run_async_transcription(audio_id: int, force_replace_answer: bool = False):
@@ -145,6 +153,36 @@ def _cleanup_temp_file(file_path: str | None):
             os.remove(file_path)
     except OSError:
         pass
+
+
+def _run_async_voice_analysis(audio_id: int):
+    # 后台线程单独管理数据库连接，避免复用已关闭连接。
+    close_old_connections()
+    try:
+        audio_obj = InterviewRoundAudio.objects.select_related("round").get(id=audio_id)
+    except InterviewRoundAudio.DoesNotExist:
+        close_old_connections()
+        return
+
+    audio_obj.analysis_status = "running"
+    audio_obj.error_message = ""
+    audio_obj.save(update_fields=["analysis_status", "error_message", "updated_at"])
+
+    transcript = (audio_obj.round.user_answer or "").strip()
+    service = AudioAnalysisService(vad_mode=2)
+
+    try:
+        service.analyze_and_save(audio_obj, transcript=transcript)
+    except AudioAnalysisError as exc:
+        mark_audio_analysis_failed(audio_obj, str(exc))
+    except Exception as exc:
+        mark_audio_analysis_failed(audio_obj, str(exc))
+    finally:
+        close_old_connections()
+
+
+def _enqueue_local_voice_analysis(audio_id: int):
+    _ANALYSIS_EXECUTOR.submit(_run_async_voice_analysis, audio_id)
 
 def _enqueue_imentiv_analysis(audio_id):
     from evaluations.tasks import analyze_imentiv_audio_task
@@ -344,6 +382,13 @@ class InterviewRoundAudioUploadView(APIView):
             message = "音频上传成功"
 
         warning_messages = []
+
+        try:
+            _enqueue_local_voice_analysis(audio_obj.id)
+        except Exception as exc:
+            # 兜底策略：线程池投递失败时同步执行一次分析，避免状态长期停留 pending。
+            warning_messages.append(f"本地语音分析异步任务投递失败，已降级为同步分析: {exc}")
+            _run_async_voice_analysis(audio_obj.id)
 
         try:
             _enqueue_imentiv_analysis(audio_obj.id)
