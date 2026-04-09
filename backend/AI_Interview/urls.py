@@ -55,6 +55,7 @@ urlpatterns = [
     path('api/user-projects/', include('user_projects.urls')),
     path('api/evaluations/', include('evaluations.urls')),
     path('api/recommendations/', include('recommendations.urls')),
+    path('api/pathway/', include('pathway.urls')),
     path('api/v1/interviews/', include('interviews.urls')),
     path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
     path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),

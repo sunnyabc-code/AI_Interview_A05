@@ -10,6 +10,10 @@ const goToInterviewReview = () => {
 const goToAbilityOverview = () => {
     router.push('/evaluation/ability')
 }
+
+const goToPathway = () => {
+    router.push('/evaluation/pathway')
+}
 </script>
 
 <template>
@@ -30,6 +34,12 @@ const goToAbilityOverview = () => {
                 <h2>能力总览区</h2>
                 <p>整合沟通表达、技术深度、结构化思维等核心能力维度，提供阶段性成长画像。</p>
                 <button type="button" class="enter-btn">进入总览</button>
+            </article>
+
+            <article class="module-card" @click="goToPathway">
+                <h2>个性化提升路径</h2>
+                <p>根据你的面试表现自动生成可执行任务计划，支持每日打卡与效果追踪。</p>
+                <button type="button" class="enter-btn">进入路径</button>
             </article>
         </section>
     </div>

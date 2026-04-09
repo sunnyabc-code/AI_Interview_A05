@@ -82,6 +82,22 @@ const accuracyPath = computed(() => {
   return points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.accuracyY}`).join(' ')
 })
 
+const logicAreaPath = computed(() => {
+  const points = chartPoints.value
+  const first = points[0]
+  const last = points[points.length - 1]
+  if (!first || !last || !logicPath.value) return ''
+  return `${logicPath.value} L ${last.x} ${chartHeight - chartPadding.bottom} L ${first.x} ${chartHeight - chartPadding.bottom} Z`
+})
+
+const accuracyAreaPath = computed(() => {
+  const points = chartPoints.value
+  const first = points[0]
+  const last = points[points.length - 1]
+  if (!first || !last || !accuracyPath.value) return ''
+  return `${accuracyPath.value} L ${last.x} ${chartHeight - chartPadding.bottom} L ${first.x} ${chartHeight - chartPadding.bottom} Z`
+})
+
 const yAxisTicks = [100, 75, 50, 25, 0]
 
 const yPosition = (value: number) => {
@@ -167,11 +183,11 @@ const yPosition = (value: number) => {
               </g>
 
               <path
-                :d="`${logicPath} L ${chartPoints[chartPoints.length - 1].x} ${chartHeight - chartPadding.bottom} L ${chartPoints[0].x} ${chartHeight - chartPadding.bottom} Z`"
+                :d="logicAreaPath"
                 fill="url(#logicGradient)"
               />
               <path
-                :d="`${accuracyPath} L ${chartPoints[chartPoints.length - 1].x} ${chartHeight - chartPadding.bottom} L ${chartPoints[0].x} ${chartHeight - chartPadding.bottom} Z`"
+                :d="accuracyAreaPath"
                 fill="url(#accuracyGradient)"
               />
 

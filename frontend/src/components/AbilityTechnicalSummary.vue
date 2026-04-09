@@ -423,7 +423,11 @@ const fetchSummary = async () => {
 
     const roundsByInterview: Record<number, InterviewRoundItem[]> = {}
     roundResults.forEach((result, idx) => {
-      const interviewId = interviews[idx].id
+      const interview = interviews[idx]
+      if (!interview) {
+        return
+      }
+      const interviewId = interview.id
       if (result.status !== 'fulfilled') {
         roundsByInterview[interviewId] = []
         return

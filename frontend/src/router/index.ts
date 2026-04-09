@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import EvaluationReviewView from '@/views/EvaluationReviewView.vue'
 import EvaluationAbilityView from '@/views/EvaluationAbilityView.vue'
+import PathwayHomeView from '@/modules/pathway/views/PathwayHomeView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -55,6 +56,12 @@ const router = createRouter({
       path: '/evaluation/ability',
       name: 'evaluation-ability',
       component: EvaluationAbilityView,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/evaluation/pathway',
+      name: 'evaluation-pathway',
+      component: PathwayHomeView,
       meta: { requiresAuth: true }
     },
   ],
