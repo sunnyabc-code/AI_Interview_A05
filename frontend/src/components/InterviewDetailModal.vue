@@ -9,8 +9,8 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  close: []
-  start: [interview: any]
+  (e: 'close'): void
+  (e: 'start', interview: any): void
 }>()
 
 const interview = ref<any>(null)
@@ -87,6 +87,32 @@ const modeText = (mode: string) => {
   return modeMap[mode] || mode
 }
 
+const difficultyText = (rawDifficulty: unknown) => {
+  const map: Record<number, string> = {
+    1: '简单',
+    2: '中等',
+    3: '困难'
+  }
+
+  const num = Number(rawDifficulty)
+  if (Number.isFinite(num) && map[num]) {
+    return map[num]
+  }
+
+  if (typeof rawDifficulty === 'string' && rawDifficulty.trim()) {
+    return rawDifficulty
+  }
+
+  return '未设置'
+}
+
+const interviewDifficultyText = () => {
+  if (!interview.value) {
+    return '未设置'
+  }
+  return difficultyText(interview.value.difficulty_name || interview.value.difficulty || interview.value.difficulty_level)
+}
+
 watch(() => props.show, (newShow) => {
   if (newShow && props.interviewId) {
     fetchInterviewDetail()
@@ -104,21 +130,53 @@ onMounted(() => {
   <div v-if="show" class="modal-overlay" @click.self="handleClose">
     <div class="modal-content">
       <div class="modal-header">
-        <h2 class="modal-title">面试详情</h2>
-        <button class="modal-close" @click="handleClose">&times;</button>
+        <h2 class="modal-title">
+          <span class="icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="4" y="5" width="16" height="14" rx="3" stroke="currentColor" stroke-width="1.8"/>
+              <path d="M8 10H16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+              <path d="M8 14H13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+          </span>
+          <span>面试详情</span>
+        </h2>
+        <button class="modal-close" @click="handleClose" aria-label="关闭">
+          <span class="icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M7 7L17 17" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+              <path d="M17 7L7 17" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+            </svg>
+          </span>
+        </button>
       </div>
       
       <div v-if="loading" class="loading">
+        <span class="spinner" aria-hidden="true"></span>
         加载中...
       </div>
       
       <div v-else-if="error" class="error-message">
+        <span class="icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M12 8V13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            <circle cx="12" cy="16.5" r="1" fill="currentColor"/>
+          </svg>
+        </span>
         {{ error }}
       </div>
       
       <div v-else-if="interview" class="interview-detail">
         <div class="detail-section">
-          <h3 class="section-title">基本信息</h3>
+          <h3 class="section-title">
+            <span class="icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="12" cy="8.2" r="3" stroke="currentColor" stroke-width="1.8"/>
+                <path d="M6.5 18C7.7 14.9 10 13.5 12 13.5C14 13.5 16.3 14.9 17.5 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+              </svg>
+            </span>
+            <span>基本信息</span>
+          </h3>
           <div class="info-grid">
             <div class="info-item">
               <span class="label">面试名称</span>
@@ -130,7 +188,7 @@ onMounted(() => {
             </div>
             <div class="info-item">
               <span class="label">难度</span>
-              <span class="value">{{ interview.difficulty_name || '未设置' }}</span>
+              <span class="value">{{ interviewDifficultyText() }}</span>
             </div>
             <div class="info-item">
               <span class="label">状态</span>
@@ -152,7 +210,16 @@ onMounted(() => {
         </div>
         
         <div class="detail-section">
-          <h3 class="section-title">题型配置</h3>
+          <h3 class="section-title">
+            <span class="icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M6 17V11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M12 17V8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M18 17V13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+              </svg>
+            </span>
+            <span>题型配置</span>
+          </h3>
           <div class="info-grid">
             <div class="info-item">
               <span class="label">技术知识题</span>
@@ -170,7 +237,16 @@ onMounted(() => {
         </div>
         
         <div class="detail-section" v-if="interview.notes">
-          <h3 class="section-title">备注</h3>
+          <h3 class="section-title">
+            <span class="icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="4" y="5" width="16" height="14" rx="3" stroke="currentColor" stroke-width="1.8"/>
+                <path d="M8 10H16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M8 14H13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+              </svg>
+            </span>
+            <span>备注</span>
+          </h3>
           <div class="notes">
             {{ interview.notes }}
           </div>
@@ -183,6 +259,11 @@ onMounted(() => {
           class="start-btn" 
           @click="handleStart"
         >
+          <span class="icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M9 7L17 12L9 17V7Z" fill="currentColor"/>
+            </svg>
+          </span>
           开始面试
         </button>
         <button 
@@ -190,9 +271,22 @@ onMounted(() => {
           class="start-btn" 
           @click="handleStart"
         >
+          <span class="icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M9 7L17 12L9 17V7Z" fill="currentColor"/>
+            </svg>
+          </span>
           继续面试
         </button>
-        <button class="close-btn" @click="handleClose">关闭</button>
+        <button class="close-btn" @click="handleClose">
+          <span class="icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M7 7L17 17" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+              <path d="M17 7L7 17" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+            </svg>
+          </span>
+          关闭
+        </button>
       </div>
     </div>
   </div>
@@ -205,178 +299,261 @@ onMounted(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(22, 30, 27, 0.56);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  backdrop-filter: blur(6px);
 }
 
 .modal-content {
-  background: white;
-  border-radius: 8px;
+  --surface: #ffffff;
+  --surface-soft: #f8fbf9;
+  --line: #dfe6e2;
+  --line-soft: #e8eeeb;
+  --text: #1f2926;
+  --muted: #66756f;
+  --accent: #2f5d56;
+  --danger: #b44e46;
+
+  background: var(--surface);
+  border-radius: 18px;
   width: 90%;
-  max-width: 600px;
-  max-height: 80vh;
-  overflow-y: auto;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  max-width: 700px;
+  max-height: 86vh;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  box-shadow: 0 26px 52px rgba(31, 41, 38, 0.2);
+  display: flex;
+  flex-direction: column;
 }
 
 .modal-header {
-  padding: 1.5rem;
-  border-bottom: 1px solid #eee;
+  padding: 1rem 1.1rem;
+  border-bottom: 1px solid var(--line-soft);
   display: flex;
   justify-content: space-between;
   align-items: center;
+  background: linear-gradient(180deg, #ffffff 0%, #f9fbfa 100%);
 }
 
 .modal-title {
-  color: #333;
-  font-size: 1.2rem;
+  color: var(--text);
+  font-size: 1.08rem;
   font-weight: 600;
   margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
 }
 
 .modal-close {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
+  background: #f3f7f5;
+  border: 1px solid #dce6e1;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
   cursor: pointer;
-  color: #999;
+  color: #49655f;
   padding: 0;
-  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.22s ease;
 }
 
 .modal-close:hover {
-  color: #333;
+  background: #eaf2ef;
 }
 
 .error-message {
-  background: #fee;
-  color: #e74c3c;
-  padding: 1rem;
-  margin: 1rem 1.5rem;
-  border-radius: 4px;
+  background: #fff6f5;
+  color: var(--danger);
+  padding: 0.86rem 0.9rem;
+  margin: 1rem 1.1rem;
+  border-radius: 12px;
+  border: 1px solid #f1d8d5;
   font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
 }
 
 .loading {
-  padding: 3rem;
+  padding: 2.4rem;
   text-align: center;
-  color: #666;
-  font-size: 1rem;
+  color: var(--muted);
+  font-size: 0.96rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
 }
 
 .interview-detail {
-  padding: 1.5rem;
+  padding: 1rem 1.1rem;
+  overflow-y: auto;
 }
 
 .detail-section {
-  margin-bottom: 2rem;
+  margin-bottom: 1.1rem;
+  border: 1px solid var(--line-soft);
+  border-radius: 14px;
+  padding: 0.82rem;
+  background: var(--surface-soft);
 }
 
 .section-title {
-  color: #333;
-  font-size: 1rem;
+  color: var(--text);
+  font-size: 0.96rem;
   font-weight: 600;
-  margin: 0 0 1rem 0;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid #eee;
+  margin: 0 0 0.7rem 0;
+  padding-bottom: 0.55rem;
+  border-bottom: 1px solid var(--line);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
 }
 
 .info-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1rem;
+  gap: 0.6rem;
 }
 
 .info-item {
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
+  gap: 0.22rem;
+  padding: 0.62rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #ffffff;
 }
 
 .label {
-  color: #666;
-  font-size: 0.8rem;
+  color: var(--muted);
+  font-size: 0.74rem;
   font-weight: 500;
 }
 
 .value {
-  color: #333;
-  font-size: 0.9rem;
-  font-weight: 500;
+  color: var(--text);
+  font-size: 0.86rem;
+  font-weight: 600;
 }
 
 .value.status-pending {
-  color: #999;
+  color: #7a8681;
 }
 
 .value.status-in_progress {
-  color: #3498db;
+  color: var(--accent);
+}
+
+.value.status-paused {
+  color: #8f6f3f;
 }
 
 .value.status-completed {
-  color: #27ae60;
+  color: #4d7c67;
 }
 
 .value.status-cancelled {
-  color: #e74c3c;
+  color: var(--danger);
 }
 
 .notes {
-  background: #f9f9f9;
-  padding: 1rem;
-  border-radius: 4px;
-  color: #333;
-  font-size: 0.9rem;
-  line-height: 1.4;
+  background: #ffffff;
+  padding: 0.86rem;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  color: var(--text);
+  font-size: 0.88rem;
+  line-height: 1.52;
 }
 
 .modal-footer {
-  padding: 1.5rem;
-  border-top: 1px solid #eee;
+  padding: 0.92rem 1.1rem;
+  border-top: 1px solid var(--line-soft);
   display: flex;
   justify-content: flex-end;
-  gap: 1rem;
+  gap: 0.55rem;
+  background: linear-gradient(180deg, #ffffff 0%, #f9fbfa 100%);
 }
 
 .start-btn {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #3f655f 0%, #2f5d56 100%);
   color: white;
   border: none;
-  padding: 0.5rem 1.5rem;
-  border-radius: 4px;
-  font-size: 0.9rem;
+  padding: 0.56rem 0.86rem;
+  border-radius: 10px;
+  font-size: 0.84rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.24s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.36rem;
 }
 
 .start-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(47, 93, 86, 0.24);
 }
 
 .close-btn {
-  background: #f0f0f0;
-  border: none;
-  padding: 0.5rem 1.5rem;
-  border-radius: 4px;
-  font-size: 0.9rem;
-  color: #333;
+  background: #eef3f1;
+  border: 1px solid #dae5df;
+  padding: 0.56rem 0.86rem;
+  border-radius: 10px;
+  font-size: 0.84rem;
+  color: #395a53;
   cursor: pointer;
-  transition: background 0.3s ease;
+  transition: background 0.24s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.36rem;
+  font-weight: 600;
 }
 
 .close-btn:hover {
-  background: #e0e0e0;
+  background: #e4ede9;
+}
+
+.icon {
+  width: 15px;
+  height: 15px;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  border: 2px solid #d8e3de;
+  border-top-color: var(--accent);
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media (max-width: 768px) {
   .modal-content {
     width: 95%;
     max-height: 90vh;
+    border-radius: 14px;
   }
   
   .info-grid {
@@ -386,7 +563,17 @@ onMounted(() => {
   .modal-header,
   .interview-detail,
   .modal-footer {
-    padding: 1rem;
+    padding: 0.85rem;
+  }
+
+  .modal-footer {
+    flex-wrap: wrap;
+  }
+
+  .start-btn,
+  .close-btn {
+    width: 100%;
+    justify-content: center;
   }
 }
 </style>

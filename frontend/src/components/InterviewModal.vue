@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch } from 'vue'
 
 const API_BASE_URL = 'http://localhost:8000'
 
@@ -174,15 +174,44 @@ watch(() => props.show, (newVal) => {
   <div v-if="show" class="modal-overlay" @click.self="handleCancel">
     <div class="modal-content">
       <div class="modal-header">
-        <h2 class="modal-title">创建新面试</h2>
-        <button class="modal-close" @click="handleCancel">&times;</button>
+        <h2 class="modal-title">
+          <span class="icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="4" y="5" width="16" height="14" rx="3" stroke="currentColor" stroke-width="1.8"/>
+              <path d="M12 9V15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+              <path d="M9 12H15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+          </span>
+          <span>创建新面试</span>
+        </h2>
+        <button class="modal-close" @click="handleCancel" aria-label="关闭">
+          <span class="icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M7 7L17 17" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+              <path d="M17 7L7 17" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+            </svg>
+          </span>
+        </button>
       </div>
       
       <div v-if="success" class="success-message">
+        <span class="icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M8 12.5L10.7 15.2L16 9.9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
         {{ success }}
       </div>
 
       <div v-if="error" class="error-message">
+        <span class="icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M12 8V13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            <circle cx="12" cy="16.5" r="1" fill="currentColor"/>
+          </svg>
+        </span>
         {{ error }}
       </div>
 
@@ -220,6 +249,11 @@ watch(() => props.show, (newVal) => {
                 type="checkbox"
                 v-model="form.enable_technical_questions"
               />
+              <span class="check-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M6.5 12.5L10 16L17.5 8.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </span>
               <span>技术知识题</span>
             </label>
             <label class="checkbox-label">
@@ -227,6 +261,11 @@ watch(() => props.show, (newVal) => {
                 type="checkbox"
                 v-model="form.enable_project_questions"
               />
+              <span class="check-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M6.5 12.5L10 16L17.5 8.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </span>
               <span>项目经历题</span>
             </label>
             <label class="checkbox-label">
@@ -234,6 +273,11 @@ watch(() => props.show, (newVal) => {
                 type="checkbox"
                 v-model="form.enable_scenario_questions"
               />
+              <span class="check-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M6.5 12.5L10 16L17.5 8.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </span>
               <span>场景题</span>
             </label>
           </div>
@@ -292,6 +336,12 @@ watch(() => props.show, (newVal) => {
             @click="handleCancel"
             :disabled="loading"
           >
+            <span class="icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M7 7L17 17" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+                <path d="M17 7L7 17" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+              </svg>
+            </span>
             取消
           </button>
           <button
@@ -299,6 +349,12 @@ watch(() => props.show, (newVal) => {
             class="btn btn-submit"
             :disabled="loading"
           >
+            <span class="icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 6V18" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+                <path d="M6 12H18" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+              </svg>
+            </span>
             {{ loading ? '创建中...' : '创建面试' }}
           </button>
         </div>
@@ -314,100 +370,128 @@ watch(() => props.show, (newVal) => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(20, 29, 26, 0.56);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  padding: 1rem;
+  padding: 0.95rem;
+  backdrop-filter: blur(6px);
 }
 
 .modal-content {
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-  max-width: 500px;
+  --surface: #ffffff;
+  --surface-soft: #f8fbf9;
+  --line: #dfe6e2;
+  --line-soft: #e8eeeb;
+  --text: #1f2926;
+  --muted: #66756f;
+  --accent: #2f5d56;
+  --accent-2: #3f6b63;
+  --danger: #ad4b43;
+
+  background: var(--surface);
+  border-radius: 18px;
+  box-shadow: 0 24px 48px rgba(24, 35, 31, 0.22);
+  border: 1px solid var(--line);
+  max-width: 640px;
   width: 100%;
-  max-height: 90vh;
-  overflow-y: auto;
+  max-height: 92vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1.5rem;
-  border-bottom: 1px solid #e0e0e0;
+  padding: 1rem 1.1rem;
+  border-bottom: 1px solid var(--line-soft);
+  background: linear-gradient(180deg, #ffffff 0%, #f9fbfa 100%);
 }
 
 .modal-title {
-  color: #333;
-  font-size: 1.4rem;
+  color: var(--text);
+  font-size: 1.06rem;
   font-weight: 600;
   margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
 }
 
 .modal-close {
-  background: transparent;
-  border: none;
-  font-size: 2rem;
-  color: #999;
+  background: #f3f7f5;
+  border: 1px solid #dce6e1;
+  color: #48635d;
   cursor: pointer;
   padding: 0;
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   display: flex;
   align-items: center;
   justify-content: center;
-  line-height: 1;
-  transition: color 0.3s ease;
+  border-radius: 10px;
+  transition: all 0.24s ease;
 }
 
 .modal-close:hover {
-  color: #333;
+  background: #eaf2ef;
 }
 
 .error-message {
-  background: #fee;
-  color: #e74c3c;
-  padding: 0.75rem;
-  border-radius: 4px;
-  margin: 0 1.5rem 1rem;
-  text-align: center;
-  font-size: 0.9rem;
+  background: #fff6f5;
+  color: var(--danger);
+  padding: 0.78rem 0.88rem;
+  border-radius: 12px;
+  border: 1px solid #f1d8d4;
+  margin: 0.85rem 1.1rem 0.75rem;
+  font-size: 0.88rem;
+  display: flex;
+  align-items: center;
+  gap: 0.42rem;
 }
 
 .success-message {
-  background: #d4edda;
-  color: #155724;
-  padding: 0.75rem;
-  border-radius: 4px;
-  margin: 0 1.5rem 1rem;
-  text-align: center;
-  font-size: 0.9rem;
+  background: #edf6f2;
+  color: #2d5f54;
+  padding: 0.78rem 0.88rem;
+  border-radius: 12px;
+  border: 1px solid #d2e5dc;
+  margin: 0.85rem 1.1rem 0.75rem;
+  font-size: 0.88rem;
+  display: flex;
+  align-items: center;
+  gap: 0.42rem;
 }
 
 .interview-form {
-  padding: 1.5rem;
+  padding: 0.95rem 1.1rem 1.05rem;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.74rem;
+  overflow-y: auto;
 }
 
 .form-group {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 0.36rem;
+  background: var(--surface-soft);
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  padding: 0.7rem;
 }
 
 .form-group label {
-  color: #333;
+  color: var(--text);
   font-weight: 500;
-  font-size: 0.9rem;
+  font-size: 0.84rem;
 }
 
 .required {
-  color: #e74c3c;
+  color: var(--danger);
   margin-left: 0.25rem;
 }
 
@@ -415,20 +499,22 @@ watch(() => props.show, (newVal) => {
 .form-group input[type="number"],
 .form-group select,
 .form-group textarea {
-  padding: 0.6rem;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
-  font-size: 0.95rem;
-  transition: all 0.3s ease;
+  padding: 0.58rem 0.68rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 0.86rem;
+  transition: all 0.24s ease;
   font-family: inherit;
+  color: var(--text);
+  background: #ffffff;
 }
 
 .form-group input:focus,
 .form-group select:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+  border-color: #7ea79c;
+  box-shadow: 0 0 0 3px rgba(84, 141, 122, 0.16);
 }
 
 .form-group textarea {
@@ -437,51 +523,82 @@ watch(() => props.show, (newVal) => {
 }
 
 .checkbox-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.45rem;
 }
 
 .checkbox-label {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.4rem;
   cursor: pointer;
   font-weight: normal;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.48rem 0.52rem;
+  background: #ffffff;
+  position: relative;
 }
 
 .checkbox-label input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
+  width: 15px;
+  height: 15px;
   cursor: pointer;
 }
 
 .checkbox-label span {
-  color: #666;
-  font-size: 0.9rem;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.checkbox-label input[type="checkbox"] ~ .check-icon {
+  opacity: 0;
+}
+
+.checkbox-label input[type="checkbox"]:checked ~ .check-icon {
+  opacity: 1;
+}
+
+.check-icon {
+  width: 14px;
+  height: 14px;
+  color: #3f6b63;
+  display: inline-flex;
+  flex-shrink: 0;
+  transition: opacity 0.18s ease;
+}
+
+.check-icon svg {
+  width: 100%;
+  height: 100%;
 }
 
 .form-hint {
-  color: #999;
-  font-size: 0.8rem;
+  color: var(--muted);
+  font-size: 0.76rem;
   margin-top: 0.25rem;
 }
 
 .form-actions {
   display: flex;
-  gap: 0.75rem;
-  margin-top: 0.5rem;
+  gap: 0.55rem;
+  margin-top: 0.36rem;
 }
 
 .btn {
   flex: 1;
-  padding: 0.6rem;
-  border: none;
-  border-radius: 4px;
-  font-size: 0.95rem;
+  min-height: 38px;
+  padding: 0.5rem 0.72rem;
+  border-radius: 10px;
+  font-size: 0.84rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.24s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.36rem;
 }
 
 .btn:disabled {
@@ -490,31 +607,68 @@ watch(() => props.show, (newVal) => {
 }
 
 .btn-cancel {
-  background: #f5f5f5;
-  color: #666;
+  background: #eef3f1;
+  color: #3d5b54;
+  border: 1px solid #d7e3dd;
 }
 
 .btn-cancel:hover:not(:disabled) {
-  background: #e0e0e0;
+  background: #e4ede9;
 }
 
 .btn-submit {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--accent-2) 0%, var(--accent) 100%);
   color: white;
+  border: none;
 }
 
 .btn-submit:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 10px 18px rgba(47, 93, 86, 0.24);
+}
+
+.icon {
+  width: 15px;
+  height: 15px;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.icon svg {
+  width: 100%;
+  height: 100%;
 }
 
 @media (max-width: 768px) {
   .modal-content {
     max-height: 95vh;
+    border-radius: 14px;
   }
   
   .interview-form {
-    padding: 1rem;
+    padding: 0.84rem;
+    gap: 0.66rem;
+  }
+
+  .modal-header {
+    padding: 0.82rem 0.84rem;
+  }
+
+  .success-message,
+  .error-message {
+    margin: 0.75rem 0.84rem 0.62rem;
+  }
+
+  .checkbox-group {
+    grid-template-columns: 1fr;
+  }
+
+  .form-actions {
+    flex-direction: column;
+  }
+
+  .btn {
+    width: 100%;
   }
 }
 </style>

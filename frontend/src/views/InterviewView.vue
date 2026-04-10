@@ -190,24 +190,60 @@ onMounted(() => {
 
 <template>
   <div class="interview-view">
-    <h2>面试功能</h2>
-    <p>点击下方按钮创建新面试</p>
-    <button class="create-interview-btn" @click="handleCreateInterview">
-      创建新面试
-    </button>
+    <section class="hero-panel">
+      <div class="hero-copy">
+        <p class="hero-eyebrow">Interview Workspace</p>
+        <h2>面试管理中心</h2>
+        <p>创建面试、跟进进度并快速进入文本或语音模式。</p>
+      </div>
+      <button class="create-interview-btn" @click="handleCreateInterview">
+        <span class="icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 6V18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            <path d="M6 12H18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span>创建新面试</span>
+      </button>
+    </section>
     
     <div class="interviews-list">
-      <h3 class="section-title">我的面试</h3>
+      <div class="section-head">
+        <h3 class="section-title">
+          <span class="icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="4" y="5" width="16" height="14" rx="3" stroke="currentColor" stroke-width="1.7"/>
+              <path d="M8 10H16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+              <path d="M8 14H13" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+            </svg>
+          </span>
+          <span>我的面试</span>
+        </h3>
+      </div>
       
       <div v-if="loading" class="loading">
+        <span class="spinner" aria-hidden="true"></span>
         加载中...
       </div>
       
       <div v-else-if="error" class="error">
+        <span class="icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M12 8V13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            <circle cx="12" cy="16.5" r="1" fill="currentColor"/>
+          </svg>
+        </span>
         {{ error }}
       </div>
       
       <div v-else-if="interviews.length === 0" class="empty-state">
+        <span class="icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="4" y="5" width="16" height="14" rx="3" stroke="currentColor" stroke-width="1.7"/>
+            <path d="M8 10H16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+          </svg>
+        </span>
         暂无面试记录
       </div>
       
@@ -234,6 +270,17 @@ onMounted(() => {
     <Teleport to="body">
       <Transition name="toast">
         <div v-if="showToast" class="toast-container" :class="toastType">
+          <span class="icon" aria-hidden="true">
+            <svg v-if="toastType === 'success'" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/>
+              <path d="M8 12.5L10.7 15.2L16 9.9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <svg v-else viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/>
+              <path d="M12 8V13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+              <circle cx="12" cy="16.5" r="1" fill="currentColor"/>
+            </svg>
+          </span>
           <span class="toast-message">{{ toastMessage }}</span>
         </div>
       </Transition>
@@ -243,90 +290,213 @@ onMounted(() => {
 
 <style scoped>
 .interview-view {
+  --bg: #f3f5f4;
+  --surface: #ffffff;
+  --surface-soft: #f8fbf9;
+  --line: #dfe6e2;
+  --line-soft: #e8eeeb;
+  --text: #1f2926;
+  --muted: #66756f;
+  --accent: #2f5d56;
+  --accent-2: #406a63;
+  --danger: #b44e46;
+
   width: 100%;
+  color: var(--text);
+}
+
+.hero-panel {
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbf9 100%);
+  box-shadow: 0 14px 28px rgba(31, 41, 38, 0.08);
+  padding: 1rem 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.hero-copy h2 {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.hero-copy p {
+  margin: 0.4rem 0 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.hero-eyebrow {
+  margin: 0 0 0.35rem !important;
+  font-size: 0.72rem !important;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+  font-weight: 600;
 }
 
 .create-interview-btn {
-  margin-top: 2rem;
-  padding: 1rem 2rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 0.72rem 1.12rem;
+  background: linear-gradient(135deg, var(--accent-2) 0%, var(--accent) 100%);
   color: white;
   border: none;
-  border-radius: 4px;
-  font-size: 1.1rem;
+  border-radius: 12px;
+  font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.24s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.42rem;
+  white-space: nowrap;
 }
 
 .create-interview-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(47, 93, 86, 0.26);
 }
 
 .interviews-list {
-  margin-top: 3rem;
+  margin-top: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: 0 14px 28px rgba(31, 41, 38, 0.08);
+  padding: 1rem;
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
 }
 
 .section-title {
-  color: #333;
-  font-size: 1.3rem;
+  color: var(--text);
+  font-size: 1.08rem;
   font-weight: 600;
-  margin: 0 0 1.5rem 0;
-  padding-bottom: 0.5rem;
-  border-bottom: 2px solid #f0f0f0;
+  margin: 0 0 0.85rem 0;
+  padding-bottom: 0.7rem;
+  border-bottom: 1px solid var(--line-soft);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
 }
 
 .loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.52rem;
   text-align: center;
-  padding: 3rem;
-  color: #666;
-  font-size: 1rem;
-  background: #f9f9f9;
-  border-radius: 4px;
+  padding: 2.4rem;
+  color: var(--muted);
+  font-size: 0.95rem;
+  background: var(--surface-soft);
+  border-radius: 12px;
+  border: 1px solid var(--line-soft);
 }
 
 .error {
-  background: #fee;
-  color: #e74c3c;
-  padding: 1rem;
-  border-radius: 4px;
+  background: #fff6f5;
+  color: var(--danger);
+  padding: 0.9rem 1rem;
+  border-radius: 12px;
+  border: 1px solid #f2d7d4;
   margin-bottom: 1rem;
   font-size: 0.9rem;
   text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
 }
 
 .empty-state {
   text-align: center;
-  padding: 3rem;
-  color: #999;
-  font-size: 1rem;
-  background: #f9f9f9;
-  border-radius: 4px;
+  padding: 2.4rem;
+  color: var(--muted);
+  font-size: 0.95rem;
+  background: var(--surface-soft);
+  border-radius: 12px;
+  border: 1px solid var(--line-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
 }
 
 .interview-cards {
+  --list-card-radius: 16px;
+  --list-card-title-size: 1rem;
+  --list-card-text-size: 0.83rem;
+  --list-card-label-size: 0.81rem;
+  --list-card-button-height: 34px;
+  --list-card-button-font-size: 0.8rem;
+  --list-card-status-height: 28px;
+  --list-card-status-font-size: 0.75rem;
+  --list-card-action-gap: 0.5rem;
+  --list-card-body-gap: 0.42rem;
+
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-  gap: 1.5rem;
+  gap: 0.95rem;
+}
+
+.icon {
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  border: 2px solid #d7e2dd;
+  border-top-color: var(--accent);
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media (max-width: 768px) {
+  .hero-panel {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.8rem;
+  }
+
+  .create-interview-btn {
+    width: 100%;
+  }
+
   .interview-cards {
     grid-template-columns: 1fr;
   }
   
   .interviews-list {
-    margin-top: 2rem;
+    margin-top: 0.8rem;
+    padding: 0.8rem;
   }
   
   .section-title {
-    font-size: 1.1rem;
-  }
-  
-  .create-interview-btn {
-    width: 100%;
-    padding: 0.8rem;
     font-size: 1rem;
   }
 }
@@ -337,24 +507,27 @@ onMounted(() => {
   top: 20px;
   left: 50%;
   transform: translateX(-50%);
-  padding: 1rem 2rem;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  padding: 0.78rem 1rem;
+  border-radius: 12px;
+  box-shadow: 0 10px 24px rgba(31, 41, 38, 0.18);
   z-index: 9999;
   font-weight: 500;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
 }
 
 .toast-container.success {
-  background: #d4edda;
-  color: #155724;
-  border: 1px solid #c3e6cb;
+  background: #edf5f2;
+  color: #2f5d56;
+  border: 1px solid #d6e6df;
 }
 
 .toast-container.error {
-  background: #f8d7da;
-  color: #721c24;
-  border: 1px solid #f5c6cb;
+  background: #fff4f3;
+  color: #9d4a43;
+  border: 1px solid #f0d5d1;
 }
 
 .toast-message {
