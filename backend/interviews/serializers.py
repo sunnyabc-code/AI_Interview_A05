@@ -201,6 +201,9 @@ class InterviewRoundListSerializer(serializers.ModelSerializer):
     question_id = serializers.IntegerField(
         source="question.id", read_only=True, allow_null=True
     )
+    audio_file_url = serializers.CharField(
+        source="audio.file_url", read_only=True, allow_blank=True, allow_null=True
+    )
     analysis = serializers.SerializerMethodField()
 
     class Meta:
@@ -216,6 +219,7 @@ class InterviewRoundListSerializer(serializers.ModelSerializer):
             "question_id",
             "question_content",
             "user_answer",
+            "audio_file_url",
             "start_time",
             "end_time",
             "created_at",

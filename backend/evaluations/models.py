@@ -122,6 +122,105 @@ class VoiceAnalysis(models.Model):
         return f'{self.round or "未关联轮次"} - {self.speech_rate}字/分钟'
 
 
+class VoiceLLMResult(models.Model):
+    STATUS_CHOICES = [
+        ("pending", "待处理"),
+        ("running", "处理中"),
+        ("success", "成功"),
+        ("failed", "失败"),
+    ]
+
+    interview = models.OneToOneField(
+        "interviews.Interview",
+        on_delete=models.CASCADE,
+        related_name="voice_llm_result",
+        verbose_name="面试",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default="pending",
+        verbose_name="生成状态",
+    )
+
+    overall_audio_score = models.DecimalField(
+        max_digits=5,
+        decimal_places=1,
+        default=0,
+        verbose_name="整体音频表现评分",
+    )
+
+    speech_rate_and_rhythm_score = models.DecimalField(
+        max_digits=5,
+        decimal_places=1,
+        default=0,
+        verbose_name="语速与面试节奏评分",
+    )
+    speech_rate_and_rhythm = models.TextField(blank=True, verbose_name="语速与面试节奏")
+
+    fluency_score = models.DecimalField(
+        max_digits=5,
+        decimal_places=1,
+        default=0,
+        verbose_name="回答流畅度评分",
+    )
+    fluency = models.TextField(blank=True, verbose_name="回答流畅度")
+
+    confidence_and_voice_energy_score = models.DecimalField(
+        max_digits=5,
+        decimal_places=1,
+        default=0,
+        verbose_name="自信度与声音能量评分",
+    )
+    confidence_and_voice_energy = models.TextField(
+        blank=True,
+        verbose_name="自信度与声音能量",
+    )
+
+    emotional_stability_and_tone_score = models.DecimalField(
+        max_digits=5,
+        decimal_places=1,
+        default=0,
+        verbose_name="情感稳定性与语气评分",
+    )
+    emotional_stability_and_tone = models.TextField(
+        blank=True,
+        verbose_name="情感稳定性与语气",
+    )
+
+    strengths = models.TextField(blank=True, verbose_name="你的优势亮点")
+    improvements = models.TextField(blank=True, verbose_name="改进建议")
+    position_communication_tips = models.TextField(
+        blank=True,
+        verbose_name="针对岗位的沟通提升点",
+    )
+    encouragement = models.TextField(blank=True, verbose_name="鼓励语")
+
+    llm_model = models.CharField(max_length=120, blank=True, verbose_name="模型名称")
+    prompt_version = models.CharField(
+        max_length=40,
+        default="voice_llm_v1",
+        verbose_name="Prompt版本",
+    )
+    raw_input_json = models.JSONField(default=dict, verbose_name="模型输入快照")
+    raw_output_json = models.JSONField(default=dict, verbose_name="模型输出快照")
+
+    generated_at = models.DateTimeField(null=True, blank=True, verbose_name="结果时间")
+    error_message = models.TextField(blank=True, verbose_name="错误信息")
+    retry_count = models.IntegerField(default=0, verbose_name="重试次数")
+
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+
+    class Meta:
+        db_table = "voice_llm_results"
+        verbose_name = "面试音频大模型总结"
+        verbose_name_plural = "面试音频大模型总结"
+
+    def __str__(self):
+        return f"{self.interview_id} - {self.status}"
+
+
 class DifficultyConfig(models.Model):
     difficulty_code = models.CharField(
         max_length=16, unique=True, verbose_name="难度编码"

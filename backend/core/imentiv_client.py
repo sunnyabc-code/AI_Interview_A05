@@ -12,6 +12,16 @@ from django.conf import settings
 class ImentivClientError(Exception):
     """Raised when iMentiv API request fails or response is invalid."""
 
+    def __init__(
+        self,
+        message: str,
+        status_code: Optional[int] = None,
+        detail: str = "",
+    ):
+        super().__init__(message)
+        self.status_code = status_code
+        self.detail = detail
+
 
 class ImentivClient:
     """Minimal iMentiv Audio Emotion API client without external dependencies."""
@@ -84,7 +94,9 @@ class ImentivClient:
         except urllib.error.HTTPError as exc:
             detail = exc.read().decode("utf-8", errors="ignore")
             raise ImentivClientError(
-                f"iMentiv HTTP error: {exc.code}, {detail}"
+                f"iMentiv HTTP error: {exc.code}, {detail}",
+                status_code=exc.code,
+                detail=detail,
             ) from exc
         except urllib.error.URLError as exc:
             raise ImentivClientError(f"iMentiv request failed: {exc.reason}") from exc

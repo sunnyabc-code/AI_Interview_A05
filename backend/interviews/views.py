@@ -31,7 +31,10 @@ from interviews.serializers import (
 from questions.models import Question, QuestionCategory
 from positions.models import JobKnowledge
 from interviews.answer_utils import is_effective_user_answer
-from interviews.scoring_service import build_evaluation_summary, run_scoring_for_interview
+from interviews.scoring_service import (
+    build_evaluation_summary,
+    run_scoring_for_interview,
+)
 
 
 class InterviewListCreateView(APIView):
@@ -203,7 +206,7 @@ class InterviewRoundListView(APIView):
 
         rounds = (
             InterviewRound.objects.filter(interview=interview)
-            .select_related("category", "question", "analysis")
+            .select_related("category", "question", "analysis", "audio")
             .order_by("round_number")
         )
         data = InterviewRoundListSerializer(rounds, many=True).data
@@ -1114,6 +1117,17 @@ class InterviewEndView(APIView):
 
         scoring_result = run_scoring_for_interview(interview)
 
+        voice_llm_result = None
+        voice_llm_error = ""
+        try:
+            from evaluations.voice_llm_result_service import (
+                generate_interview_voice_llm_result,
+            )
+
+            voice_llm_result = generate_interview_voice_llm_result(interview.id)
+        except Exception as exc:  # noqa: BLE001
+            voice_llm_error = str(exc)
+
         return APIResponse.success(
             data={
                 "interview_id": interview.id,
@@ -1121,6 +1135,13 @@ class InterviewEndView(APIView):
                 "end_time": interview.end_time,
                 "total_duration": total_duration,
                 "actual_duration": actual_duration,
+                "voice_llm_result_status": (
+                    voice_llm_result.status if voice_llm_result else "failed"
+                ),
+                "voice_llm_result_id": (
+                    voice_llm_result.id if voice_llm_result else None
+                ),
+                "voice_llm_error": voice_llm_error,
                 "scoring": scoring_result,
             },
             message="面试已结束",

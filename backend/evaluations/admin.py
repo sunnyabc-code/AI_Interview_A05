@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import DifficultyConfig, Evaluation, VoiceAnalysis
+from .models import DifficultyConfig, Evaluation, VoiceAnalysis, VoiceLLMResult
 
 
 @admin.register(Evaluation)
@@ -59,3 +59,19 @@ class DifficultyConfigAdmin(admin.ModelAdmin):
     search_fields = ["difficulty_code", "difficulty_name"]
     ordering = ["id"]
     readonly_fields = ["created_at", "updated_at"]
+
+
+@admin.register(VoiceLLMResult)
+class VoiceLLMResultAdmin(admin.ModelAdmin):
+    list_display = [
+        "id",
+        "interview",
+        "status",
+        "overall_audio_score",
+        "generated_at",
+        "updated_at",
+    ]
+    list_filter = ["status", "prompt_version"]
+    search_fields = ["interview__user__username", "interview__position__name"]
+    ordering = ["-updated_at"]
+    readonly_fields = ["created_at", "updated_at", "generated_at"]
