@@ -14,6 +14,8 @@ export function useInterviewSession() {
   const isWaitingForQuestion = ref(false)
   /** 正在结束面试（拉取最后一题结果或调用结束接口），用于全屏加载层 */
   const isClosingInterview = ref(false)
+  const showEndDecision = ref(false)
+  const isWaitingForEvaluationResult = ref(false)
   const isInterviewEnded = ref(false)
   const isPaused = ref(false)
   const pollingInterval = ref<number | null>(null)
@@ -21,6 +23,66 @@ export function useInterviewSession() {
   const showCountdown = ref(false)
   const countdownInterval = ref<number | null>(null)
   const VOICE_PLACEHOLDER_ANSWER = '1'
+
+  const navigateToEvaluationWithNotice = async (interviewId: string) => {
+    addSystemMessage('面试已结束，正在跳转评估页面...')
+    router.push(`/interview/${interviewId}/evaluation`)
+  }
+
+  const returnToInterviewList = () => {
+    stopPolling()
+    showEndDecision.value = false
+    isWaitingForEvaluationResult.value = false
+    isClosingInterview.value = false
+    isWaitingForQuestion.value = false
+    router.push('/home?menu=interview')
+  }
+
+  const waitForEvaluationResult = async () => {
+    const interviewId = route.params.id as string
+    showEndDecision.value = false
+    isWaitingForEvaluationResult.value = true
+    isClosingInterview.value = true
+    isWaitingForQuestion.value = true
+
+    const fetchEvaluationSummary = async () => {
+      const response = await fetch(
+        `${API_BASE_URL}/api/v1/interviews/${interviewId}/evaluation-summary/`,
+        { headers: getAuthHeaders() }
+      )
+      const data = await response.json().catch(() => ({}))
+      return { ok: response.ok && data.code === 200, data, response }
+    }
+
+    try {
+      for (let index = 0; index < 48; index++) {
+        const result = await fetchEvaluationSummary()
+        if (result.ok) {
+          await navigateToEvaluationWithNotice(interviewId)
+          return true
+        }
+
+        const code = result.data?.code
+        const message = String(result.data?.message || '')
+        const shouldRetry =
+          code === 400 && (message.includes('未完成') || message.includes('暂无'))
+
+        if (!shouldRetry) {
+          addSystemMessage(message || '评估结果加载失败')
+          return false
+        }
+
+        await new Promise((resolve) => window.setTimeout(resolve, 1500))
+      }
+
+      addSystemMessage('评估结果仍在生成中，请稍后在评估页查看')
+      return false
+    } finally {
+      isWaitingForEvaluationResult.value = false
+      isWaitingForQuestion.value = false
+      isClosingInterview.value = false
+    }
+  }
 
   /** 获取下一题时：仅空回答视为未作答；语音占位「1」允许继续推进 */
   const isEffectiveUserAnswer = (userAnswer: unknown) => {
@@ -188,7 +250,8 @@ export function useInterviewSession() {
 
   const endInterview = async () => {
     const interviewId = route.params.id as string
-    isClosingInterview.value = true
+    showEndDecision.value = true
+    isClosingInterview.value = false
     isWaitingForQuestion.value = true
 
     try {
@@ -203,24 +266,27 @@ export function useInterviewSession() {
           interview.value = { ...interview.value, ...data.data }
           isInterviewEnded.value = true
           stopPolling()
-          router.push(`/interview/${interviewId}/evaluation`)
+          showEndDecision.value = true
           return true
         } else {
+          showEndDecision.value = false
           addSystemMessage(data.message || '结束面试失败')
           return false
         }
       } else {
         const errorData = await response.json().catch(() => ({ message: '未知错误' }))
+        showEndDecision.value = false
         addSystemMessage(errorData.message || '结束面试失败')
         return false
       }
     } catch (err) {
       console.error('结束面试失败:', err)
+      showEndDecision.value = false
       addSystemMessage('结束面试失败，请稍后重试')
       return false
     } finally {
-      isClosingInterview.value = false
       isWaitingForQuestion.value = false
+      isClosingInterview.value = false
     }
   }
 
@@ -250,8 +316,9 @@ export function useInterviewSession() {
         return
       }
 
-      // 当前已产生的轮次均已有效作答：由后端 next-question 判断是否还有下一题或结束面试（勿设 isClosingInterview，避免与追问链切换时误显示「结束面试」全屏层）
-      await generateNextQuestion()
+      // 当前已产生的轮次均已有效作答：由后端 next-question 判断是否还有下一题或结束面试。
+      // 此时展示「结束中」态，避免误导为“仍在获取下一题”。
+      await generateNextQuestion(true)
       
     } catch (err) {
       console.error('获取下一题失败:', err)
@@ -260,9 +327,16 @@ export function useInterviewSession() {
     }
   }
 
-  const generateNextQuestion = async () => {
+  const generateNextQuestion = async (resolvingEndOrNext = false) => {
     isWaitingForQuestion.value = true
-    addSystemMessage('⏳ 正在生成问题，请稍候...')
+    if (resolvingEndOrNext) {
+      // 优先展示结束决策弹窗，而不是先显示转圈。
+      showEndDecision.value = true
+      isClosingInterview.value = false
+      addSystemMessage('已完成作答，正在结束面试并生成分析结果...')
+    } else {
+      addSystemMessage('⏳ 正在生成问题，请稍候...')
+    }
     
     try {
       const interviewId = route.params.id as string
@@ -275,6 +349,7 @@ export function useInterviewSession() {
       if (response.ok) {
         const data = await response.json()
         if (data.code === 201) {
+          showEndDecision.value = false
           isClosingInterview.value = false
           const newRound = data.data
           currentRound.value = newRound
@@ -290,10 +365,9 @@ export function useInterviewSession() {
           }
           isInterviewEnded.value = true
           stopPolling()
-          isWaitingForQuestion.value = false
-          isClosingInterview.value = false
-          router.push(`/interview/${interviewId}/evaluation`)
+          showEndDecision.value = true
         } else {
+          showEndDecision.value = false
           addSystemMessage(`生成问题失败: ${data.message || '未知错误'}`)
           currentRound.value = null
           isWaitingForQuestion.value = false
@@ -301,6 +375,7 @@ export function useInterviewSession() {
         }
       } else {
         const errorData = await response.json().catch(() => ({ message: '服务器错误' }))
+        showEndDecision.value = false
         addSystemMessage(`生成问题失败: ${errorData.message || '服务器错误'}`)
         currentRound.value = null
         isWaitingForQuestion.value = false
@@ -308,6 +383,7 @@ export function useInterviewSession() {
       }
     } catch (err) {
       console.error('生成问题失败:', err)
+      showEndDecision.value = false
       addSystemMessage('生成问题失败，请点击重试按钮')
       currentRound.value = null
       isWaitingForQuestion.value = false
@@ -510,6 +586,8 @@ export function useInterviewSession() {
     isSubmitting,
     isWaitingForQuestion,
     isClosingInterview,
+    showEndDecision,
+    isWaitingForEvaluationResult,
     isInterviewEnded,
     isPaused,
     countdownSeconds,
@@ -520,6 +598,8 @@ export function useInterviewSession() {
     pauseInterview,
     resumeInterview,
     endInterview,
+    returnToInterviewList,
+    waitForEvaluationResult,
     getNextQuestion,
     generateNextQuestion,
     retryGenerateQuestion,

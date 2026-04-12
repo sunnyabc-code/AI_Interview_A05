@@ -302,7 +302,7 @@ watch(() => props.show, (newVal) => {
           <select id="mode" v-model="form.mode">
             <option value="text">文本模式</option>
             <option value="voice">语音模式</option>
-            <option value="mixed">混合模式</option>
+            <!-- <option value="mixed">混合模式</option> -->
           </select>
         </div>
 

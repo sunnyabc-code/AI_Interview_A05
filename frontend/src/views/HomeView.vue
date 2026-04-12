@@ -14,7 +14,7 @@ const menuItems = [
   { id: 'home', label: '首页' },
   { id: 'interview', label: '面试' },
   { id: 'evaluation', label: '评估' },
-  { id: 'history', label: '历史记录' },
+  /* { id: 'history', label: '历史记录' }, */
   { id: 'profile', label: '个人中心' }
 ]
 
@@ -152,10 +152,10 @@ onMounted(() => {
         <EvaluationView />
       </div>
 
-      <div v-if="activeMenu === 'history'" class="content-area">
+      <!-- <div v-if="activeMenu === 'history'" class="content-area">
         <h2>历史记录</h2>
         <p>历史记录功能正在开发中...</p>
-      </div>
+      </div> -->
 
       <div v-if="activeMenu === 'profile'" class="content-area">
         <ProfileView />

@@ -44,10 +44,16 @@ const isPaused = ref(false)
 const isSilenceEnding = ref(false)
 const silenceFinalizeCountdown = ref(3)
 const roundProgressText = ref('')
+const startNoticeText = ref('')
 const showInterviewEndedNotice = ref(false)
+const isClosingInterview = ref(false)
+const showEndDecision = ref(false)
+const isWaitingForEvaluationResult = ref(false)
 const showAutoStartPrompt = ref(false)
 const autoStartCountdown = ref(3)
 const isAdvancingRound = ref(false)
+const isHandlingVoiceAnswer = ref(false)
+const voiceAnswerStage = ref<'idle' | 'finalizing' | 'uploading' | 'advancing'>('idle')
 const flowLog = ref<string[]>([])
 const monitorError = ref('')
 const networkOnline = ref(typeof navigator !== 'undefined' ? navigator.onLine : true)
@@ -65,9 +71,10 @@ let recordingStartedAtMs = 0
 let lastRecordingDurationSeconds = 0
 let autoStartTimer: number | null = null
 let silenceFinalizeTimer: number | null = null
+let startNoticeTimer: number | null = null
 
-const SILENCE_TRIGGER_SECONDS = 2
-const SILENCE_FINALIZE_SECONDS = 3
+const SILENCE_TRIGGER_SECONDS = 10
+const SILENCE_FINALIZE_SECONDS = 5
 const FORCED_STOPPABLE_AFTER_SECONDS = 5
 
 const getAuthHeaders = () => {
@@ -94,6 +101,22 @@ const clearSilenceFinalizeTimer = () => {
     window.clearInterval(silenceFinalizeTimer)
     silenceFinalizeTimer = null
   }
+}
+
+const clearStartNoticeTimer = () => {
+  if (startNoticeTimer) {
+    window.clearTimeout(startNoticeTimer)
+    startNoticeTimer = null
+  }
+}
+
+const showStartNotice = (message: string) => {
+  clearStartNoticeTimer()
+  startNoticeText.value = message
+  startNoticeTimer = window.setTimeout(() => {
+    startNoticeText.value = ''
+    startNoticeTimer = null
+  }, 6000)
 }
 
 const cancelSilenceFinalize = (log = false) => {
@@ -226,6 +249,8 @@ const interviewStatusText = computed(() => {
   }
   return statusMap[status] || '未知'
 })
+const isInterviewPending = computed(() => interview.value?.status === 'pending')
+const isInterviewInProgress = computed(() => interview.value?.status === 'in_progress')
 const networkStatusText = computed(() => (networkOnline.value ? '网络在线' : '网络离线'))
 const micStatusText = computed(() => {
   const map: Record<string, string> = {
@@ -302,6 +327,15 @@ const answerTimeWarningText = computed(() => {
 })
 
 const recordingGuideText = computed(() => {
+  if (isHandlingVoiceAnswer.value) {
+    const stageTextMap: Record<string, string> = {
+      finalizing: '回答已结束，正在整理音频...',
+      uploading: '正在上传音频，请稍候...',
+      advancing: '音频上传完成，正在提交回答并生成下一题...',
+    }
+    return stageTextMap[voiceAnswerStage.value] || '正在处理回答，请稍候...'
+  }
+
   if (recordingState.value !== 'recording') return ''
   if (isSilenceEnding.value) {
     return `检测到停顿，即将结束...（倒计时 ${silenceFinalizeCountdown.value} 秒）`
@@ -310,6 +344,10 @@ const recordingGuideText = computed(() => {
 })
 
 const recordingGuideSubText = computed(() => {
+  if (isHandlingVoiceAnswer.value) {
+    return '处理中暂不可开始下一次回答'
+  }
+
   if (recordingState.value === 'recording' && isSilenceEnding.value) {
     return '继续说话可取消结束'
   }
@@ -487,6 +525,8 @@ const stopRecording = (reason: AnswerEndReason) => {
   if (recordingState.value !== 'recording') return
 
   cancelSilenceFinalize()
+  isHandlingVoiceAnswer.value = true
+  voiceAnswerStage.value = 'finalizing'
 
   if (recordingStartedAtMs > 0) {
     const duration = Math.max(1, Math.round((Date.now() - recordingStartedAtMs) / 1000))
@@ -584,7 +624,13 @@ const startRecording = async () => {
   cancelAutoStartPrompt()
   cancelSilenceFinalize()
   monitorError.value = ''
-  if (recordingState.value === 'recording' || isPaused.value || isSpeaking.value) return
+  if (
+    recordingState.value === 'recording' ||
+    isPaused.value ||
+    isSpeaking.value ||
+    isHandlingVoiceAnswer.value ||
+    !isInterviewInProgress.value
+  ) return
 
   try {
     mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true })
@@ -606,16 +652,24 @@ const startRecording = async () => {
     }
 
     mediaRecorder.onstop = async () => {
-      const blob = new Blob(audioChunks, { type: mediaRecorder?.mimeType || 'audio/webm' })
-      const durationSeconds = lastRecordingDurationSeconds || Math.max(1, Math.round(endDetector.elapsedMs.value / 1000))
-      addLog(`录音已结束，生成音频 ${(blob.size / 1024).toFixed(1)} KB，时长 ${durationSeconds}s。`)
-      const uploaded = await uploadRecordedAudio(blob, durationSeconds)
-      if (uploaded && !isPaused.value) {
-        await submitPlaceholderAndAdvance()
+      try {
+        const blob = new Blob(audioChunks, { type: mediaRecorder?.mimeType || 'audio/webm' })
+        const durationSeconds = lastRecordingDurationSeconds || Math.max(1, Math.round(endDetector.elapsedMs.value / 1000))
+        addLog(`录音已结束，生成音频 ${(blob.size / 1024).toFixed(1)} KB，时长 ${durationSeconds}s。`)
+
+        voiceAnswerStage.value = 'uploading'
+        const uploaded = await uploadRecordedAudio(blob, durationSeconds)
+        if (uploaded && !isPaused.value) {
+          voiceAnswerStage.value = 'advancing'
+          await submitPlaceholderAndAdvance()
+        }
+      } finally {
+        isHandlingVoiceAnswer.value = false
+        voiceAnswerStage.value = 'idle'
+        cleanupAudioGraph()
+        recordingStartedAtMs = 0
+        lastRecordingDurationSeconds = 0
       }
-      cleanupAudioGraph()
-      recordingStartedAtMs = 0
-      lastRecordingDurationSeconds = 0
     }
 
     audioContext = new AudioContext()
@@ -682,6 +736,8 @@ const fetchNextQuestion = async () => {
       roundProgressText.value = ''
       currentQuestionCategory.value = ''
       showInterviewEndedNotice.value = true
+      showEndDecision.value = true
+      isClosingInterview.value = false
       addLog('面试已完成，无下一题。')
       interview.value = { ...interview.value, ...data.data }
       return false
@@ -767,6 +823,30 @@ const pauseInterview = async () => {
   }
 }
 
+const startInterviewManually = async () => {
+  if (!interviewId.value || !isInterviewPending.value) return
+
+  cancelAutoStartPrompt()
+  cancelSilenceFinalize()
+
+  try {
+    const startData = await postJson(`${API_BASE_URL}/api/v1/interviews/${interviewId.value}/start/`)
+    interview.value = { ...interview.value, ...startData.data, status: 'in_progress' }
+
+    const interviewName = String(interview.value?.name || '本场')
+    showStartNotice(`欢迎参加${interviewName}面试。请保持表达清晰、逻辑严谨，祝您发挥顺利。`)
+    addLog('面试已开始，准备获取第一题。')
+
+    roundProgressText.value = '正在获取第一题...'
+    const ok = await fetchNextQuestion()
+    if (ok && !isPaused.value) {
+      await playQuestion()
+    }
+  } catch (err) {
+    addLog(`开始面试失败: ${errorMessage(err)}`)
+  }
+}
+
 const endInterview = async () => {
   if (!interviewId.value) return
   cancelAutoStartPrompt()
@@ -779,6 +859,8 @@ const endInterview = async () => {
     const data = await postJson(`${API_BASE_URL}/api/v1/interviews/${interviewId.value}/end/`)
     interview.value = { ...interview.value, ...data.data, status: 'completed' }
     showInterviewEndedNotice.value = true
+    showEndDecision.value = true
+    isClosingInterview.value = false
     addLog('面试结束，结果报告生成中。')
     return
   } catch (err) {
@@ -789,7 +871,59 @@ const endInterview = async () => {
 }
 
 const backToInterviewList = () => {
+  showEndDecision.value = false
+  isWaitingForEvaluationResult.value = false
+  isClosingInterview.value = false
+  showInterviewEndedNotice.value = false
   router.push('/home?menu=interview')
+}
+
+const waitForEvaluationResult = async () => {
+  if (!interviewId.value) return
+
+  showEndDecision.value = false
+  isWaitingForEvaluationResult.value = true
+  isClosingInterview.value = true
+
+  const fetchEvaluationSummary = async () => {
+    const token = localStorage.getItem('access_token')
+    const response = await fetch(
+      `${API_BASE_URL}/api/v1/interviews/${interviewId.value}/evaluation-summary/`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    )
+    const data = await response.json().catch(() => ({}))
+    return { ok: response.ok && data.code === 200, data }
+  }
+
+  try {
+    for (let index = 0; index < 48; index += 1) {
+      const result = await fetchEvaluationSummary()
+      if (result.ok) {
+        router.push(`/interview/${interviewId.value}/evaluation`)
+        return
+      }
+
+      const code = result.data?.code
+      const message = String(result.data?.message || '')
+      const shouldRetry =
+        code === 400 && (message.includes('未完成') || message.includes('暂无'))
+
+      if (!shouldRetry) {
+        addLog(message || '评估结果加载失败。')
+        break
+      }
+
+      await new Promise((resolve) => window.setTimeout(resolve, 1500))
+    }
+  } finally {
+    isWaitingForEvaluationResult.value = false
+    isClosingInterview.value = false
+    showEndDecision.value = true
+  }
 }
 
 const submitFallbackText = async () => {
@@ -821,6 +955,7 @@ const submitFallbackText = async () => {
 const handleBack = () => {
   cancelAutoStartPrompt()
   cancelSilenceFinalize()
+  clearStartNoticeTimer()
   if (recordingState.value === 'recording') {
     stopRecording('manual')
   }
@@ -869,19 +1004,10 @@ const loadInterviewInfo = async () => {
 
     isPaused.value = interview.value?.status === 'paused'
 
-    if (interview.value?.status === 'pending') {
-      try {
-        const startData = await postJson(`${API_BASE_URL}/api/v1/interviews/${interviewId.value}/start/`)
-        interview.value = { ...interview.value, ...startData.data, status: 'in_progress' }
-      } catch (err) {
-        addLog(`自动开始面试失败: ${errorMessage(err)}`)
-      }
-    }
-
     const shouldFetchFirstQuestion =
       !hasUnfinishedRound &&
       !currentRoundId.value &&
-      ['in_progress', 'pending'].includes(interview.value?.status || '')
+      ['in_progress'].includes(interview.value?.status || '')
 
     if (shouldFetchFirstQuestion) {
       roundProgressText.value = '正在获取第一题...'
@@ -908,15 +1034,41 @@ loadInterviewInfo()
 </script>
 
 <template>
-  <div v-if="showInterviewEndedNotice" class="ended-screen">
-    <div class="ended-card">
-      <h1>当前面试已结束</h1>
-      <p>结果报告正在生成中，请稍后在评估报告中查看。</p>
-      <button class="btn primary" @click="backToInterviewList">返回面试列表</button>
+  <div v-if="showInterviewEndedNotice" class="session-exit-overlay" aria-live="polite">
+    <div v-if="!showEndDecision" class="session-exit-inner">
+      <div class="session-spinner" />
+      <p class="session-exit-title">面试已结束</p>
+      <p class="session-exit-text">分析报告正在生成，请稍候…</p>
+    </div>
+
+    <div v-else class="session-exit-card">
+      <div class="session-exit-badge">已完成</div>
+      <h2>面试已结束，分析报告正在生成</h2>
+      <p>
+        您可以先返回面试列表，稍后在评估页面查看完整结果；
+        也可以等待结果生成后，系统会自动跳转到评估页面。
+      </p>
+      <div class="session-exit-actions">
+        <button class="exit-list-btn" @click="backToInterviewList">
+          返回面试列表
+        </button>
+        <button
+          class="exit-wait-btn"
+          :disabled="isWaitingForEvaluationResult"
+          @click="waitForEvaluationResult"
+        >
+          {{ isWaitingForEvaluationResult ? '正在等待结果...' : '等待评估结果' }}
+        </button>
+      </div>
+      <p class="session-exit-footnote">评估结果生成后，会自动打开评估页面。</p>
     </div>
   </div>
 
   <div v-else class="voice-page">
+    <div v-if="startNoticeText" class="start-notice start-notice--top" role="status" aria-live="polite">
+      {{ startNoticeText }}
+    </div>
+
     <div class="voice-sidebar-shell">
     <aside class="voice-sidebar">
       <div class="sidebar-hero">
@@ -979,10 +1131,21 @@ loadInterviewInfo()
       <section class="voice-card sidebar-card">
         <div class="card-title-row">
           <h2>快捷操作</h2>
-          <span class="mini-badge">{{ isPaused ? '已暂停' : '进行中' }}</span>
+          <span class="mini-badge">{{ interviewStatusText }}</span>
         </div>
         <div class="sidebar-actions">
-          <div class="action-group">
+          <div v-if="isInterviewPending" class="action-group">
+            <button class="btn primary" @click="startInterviewManually">
+              <span class="btn-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M9 7L17 12L9 17V7Z" fill="currentColor"/>
+                </svg>
+              </span>
+              <span>开始面试</span>
+            </button>
+          </div>
+
+          <div v-else-if="isInterviewInProgress || isPaused" class="action-group">
             <button class="btn primary" @click="pauseInterview">
               <span class="btn-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -992,14 +1155,14 @@ loadInterviewInfo()
               </span>
               <span>{{ isPaused ? '继续面试' : '暂停面试' }}</span>
             </button>
-            <button class="btn danger" @click="endInterview">
+            <!-- <button class="btn danger" @click="endInterview">
               <span class="btn-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor"/>
                 </svg>
               </span>
               <span>结束面试</span>
-            </button>
+            </button> -->
           </div>
 <!--           <button class="btn secondary" :disabled="!currentText" @click="replayQuestion">重听问题</button>
           <button class="btn secondary" :disabled="!supportsTTS() || isSpeaking" @click="playQuestion">播报题目</button> -->
@@ -1136,7 +1299,7 @@ loadInterviewInfo()
           <button
             v-if="mainTalkMode === 'click'"
             class="btn primary talk-btn"
-            :disabled="isPaused || isSpeaking"
+            :disabled="isPaused || isSpeaking || isHandlingVoiceAnswer || !isInterviewInProgress"
             @click="toggleMainTalk"
           >
             {{ recordingState === 'recording' ? '结束回答' : '开始回答' }}
@@ -1145,7 +1308,7 @@ loadInterviewInfo()
           <button
             v-else
             class="btn primary talk-btn"
-            :disabled="isPaused || isSpeaking"
+            :disabled="isPaused || isSpeaking || isHandlingVoiceAnswer || !isInterviewInProgress"
             @mousedown="holdStart"
             @mouseup="holdEnd"
             @mouseleave="holdEnd"
@@ -1270,44 +1433,136 @@ loadInterviewInfo()
   z-index: 1;
 }
 
-.ended-screen {
-  min-height: 100dvh;
-  padding: 20px;
+.session-exit-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(251, 252, 251, 0.9);
   display: flex;
   align-items: center;
   justify-content: center;
-  background:
-    radial-gradient(circle at top left, rgba(47, 93, 86, 0.1), transparent 36%),
-    radial-gradient(circle at top right, rgba(31, 41, 38, 0.06), transparent 32%),
-    var(--bg);
+  backdrop-filter: blur(4px);
 }
 
-.ended-card {
-  width: min(520px, 100%);
-  background: rgba(255, 255, 255, 0.96);
-  border: 1px solid var(--line);
-  border-radius: 18px;
-  box-shadow: 0 20px 40px rgba(31, 41, 38, 0.14);
-  padding: 24px;
+.session-exit-inner {
   text-align: center;
+  padding: 1.6rem;
 }
 
-.ended-card h1 {
+.session-exit-card {
+  width: min(560px, calc(100vw - 32px));
+  background: #ffffff;
+  border: 1px solid #d7e5df;
+  border-radius: 18px;
+  box-shadow: 0 24px 60px rgba(31, 41, 38, 0.18);
+  padding: 1.5rem 1.4rem 1.25rem;
+  text-align: left;
+}
+
+.session-exit-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.28rem 0.6rem;
+  border-radius: 999px;
+  background: #e7f4ef;
+  color: #235047;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 0.9rem;
+}
+
+.session-exit-card h2 {
+  margin: 0 0 0.65rem;
+  font-size: 1.22rem;
+  color: #1f2926;
+  line-height: 1.35;
+}
+
+.session-exit-card p {
   margin: 0;
-  color: var(--text);
-  font-size: 28px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
+  color: #4a5d58;
+  line-height: 1.7;
 }
 
-.ended-card p {
-  margin: 10px 0 0;
-  color: var(--muted);
-  font-size: 15px;
+.session-exit-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
 }
 
-.ended-card .btn {
-  margin-top: 18px;
+.session-exit-actions button {
+  flex: 1;
+  border: none;
+  border-radius: 12px;
+  padding: 0.82rem 1rem;
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+.exit-list-btn {
+  background: #edf2ef;
+  color: #324742;
+}
+
+.exit-list-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(31, 41, 38, 0.09);
+}
+
+.exit-wait-btn {
+  background: linear-gradient(135deg, #3f655f 0%, #2f5d56 100%);
+  color: #ffffff;
+  box-shadow: 0 10px 22px rgba(47, 93, 86, 0.2);
+}
+
+.exit-wait-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(47, 93, 86, 0.24);
+}
+
+.exit-wait-btn:disabled {
+  opacity: 0.72;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.session-exit-footnote {
+  margin-top: 0.85rem !important;
+  font-size: 0.82rem;
+  color: #6b7d78 !important;
+}
+
+.session-spinner {
+  width: 42px;
+  height: 42px;
+  margin: 0 auto 0.8rem;
+  border: 3px solid #dde7e3;
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: session-spin 0.85s linear infinite;
+}
+
+.session-exit-title {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #27433d;
+}
+
+.session-exit-text {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #42514c;
+}
+
+@keyframes session-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .voice-sidebar,
@@ -1685,6 +1940,23 @@ loadInterviewInfo()
   padding: 9px 10px;
 }
 
+.start-notice {
+  border: 1px solid #c4dcd1;
+  background: linear-gradient(110deg, #eef7f2 0%, #e6f1eb 42%, #f3faf6 100%);
+  border-radius: 14px;
+  padding: 14px 18px;
+  color: #214a41;
+  font-size: 24px;
+  line-height: 1.45;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  box-shadow: 0 10px 22px rgba(43, 103, 93, 0.14);
+}
+
+.start-notice--top {
+  grid-column: 1 / -1;
+}
+
 .autostart-main {
   font-weight: 600;
   color: #2f5d56;
@@ -1943,6 +2215,11 @@ loadInterviewInfo()
     gap: 10px;
   }
 
+  .start-notice {
+    font-size: 19px;
+    padding: 11px 12px;
+  }
+
   .voice-sidebar-shell,
   .voice-content-shell {
     min-height: auto;
@@ -2059,6 +2336,20 @@ loadInterviewInfo()
 
   .sidebar-hero {
     gap: 10px;
+  }
+
+  .session-exit-card {
+    width: min(100vw - 28px, 560px);
+    padding: 1.25rem 1rem 1rem;
+    border-radius: 16px;
+  }
+
+  .session-exit-card h2 {
+    font-size: 1.05rem;
+  }
+
+  .session-exit-actions {
+    flex-direction: column;
   }
 
   .question-input {
