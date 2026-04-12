@@ -82,14 +82,14 @@ const goToPathway = () => {
 
 <style scoped>
 .evaluation-page {
-    --bg: #f4f5f2;
-    --surface: rgba(255, 255, 255, 0.88);
-    --line: #dde2da;
-    --line-strong: #cfd7cc;
-    --text: #1f2722;
-    --muted: #657168;
-    --accent: #3d5b4f;
-    --accent-press: #2f473e;
+    --bg: #f3f5f4;
+    --surface: rgba(255, 255, 255, 0.92);
+    --line: #dde5e1;
+    --line-strong: #c9d4cf;
+    --text: #1f2926;
+    --muted: #66756f;
+    --accent: #2f5d56;
+    --accent-press: #264a45;
 
     min-height: 100%;
     position: relative;

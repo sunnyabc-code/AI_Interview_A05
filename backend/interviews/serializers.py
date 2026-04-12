@@ -2,6 +2,7 @@ from rest_framework import serializers
 from interviews.models import Interview, InterviewRound
 from positions.models import JobPosition
 from evaluations.models import DifficultyConfig
+from user_projects.models import UserProject
 
 
 class InterviewCreateSerializer(serializers.Serializer):
@@ -62,6 +63,26 @@ class InterviewCreateSerializer(serializers.Serializer):
 
         if not attrs.get("total_rounds"):
             attrs["total_rounds"] = self.calculate_total_rounds(attrs)
+
+        request = self.context.get("request")
+        enable_project = attrs.get("enable_project_questions", True)
+        position = attrs.get("position")
+
+        if (
+            request
+            and getattr(request, "user", None)
+            and request.user.is_authenticated
+            and enable_project
+            and position
+        ):
+            if not UserProject.objects.filter(
+                user=request.user, position_id=position.id
+            ).exists():
+                raise serializers.ValidationError(
+                    {
+                        "enable_project_questions": "已勾选项目经历题，请先在个人中心为该岗位填写至少一条项目经历后再创建面试。"
+                    }
+                )
 
         return attrs
 
@@ -153,6 +174,13 @@ class InterviewRoundSerializer(serializers.Serializer):
     llm_prompt = serializers.CharField(
         required=False, allow_blank=True, allow_null=True
     )
+    chain_topic_label = serializers.CharField(
+        required=False, allow_blank=True, allow_null=True
+    )
+    job_knowledge_serial = serializers.IntegerField(
+        required=False, allow_null=True
+    )
+    user_project_id = serializers.IntegerField(required=False, allow_null=True)
 
 
 class InterviewRoundAnswerRequestSerializer(serializers.Serializer):
@@ -205,6 +233,7 @@ class InterviewRoundListSerializer(serializers.ModelSerializer):
         source="audio.file_url", read_only=True, allow_blank=True, allow_null=True
     )
     analysis = serializers.SerializerMethodField()
+    asr_status = serializers.SerializerMethodField()
 
     class Meta:
         model = InterviewRound
@@ -220,6 +249,7 @@ class InterviewRoundListSerializer(serializers.ModelSerializer):
             "question_content",
             "user_answer",
             "audio_file_url",
+            "asr_status",
             "start_time",
             "end_time",
             "created_at",
@@ -253,6 +283,12 @@ class InterviewRoundListSerializer(serializers.ModelSerializer):
 
         text = str(value).strip()
         return [text] if text else []
+
+    def get_asr_status(self, obj):
+        audio = getattr(obj, "audio", None)
+        if not audio:
+            return ""
+        return (getattr(audio, "asr_status", None) or "").strip()
 
     def get_analysis(self, obj):
         """获取关联的轮次分析数据，并兼容历史脏数据类型。"""

@@ -8,15 +8,17 @@ import { RouterView } from 'vue-router'
 
 <style>
 :root {
-  --color-primary: #667eea;
-  --color-secondary: #764ba2;
-  --color-text: #333;
-  --color-light: #f5f5f5;
+  --color-primary: #2f5d56;
+  --color-secondary: #3f655f;
+  --color-text: #1f2926;
+  --color-muted: #66756f;
+  --color-light: #f3f5f4;
   --color-white: #ffffff;
-  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.15);
-  --border-radius: 8px;
-  --transition: all 0.3s ease;
+  --color-line: #dde5e1;
+  --shadow-sm: 0 8px 20px rgba(31, 41, 38, 0.06);
+  --shadow-md: 0 12px 28px rgba(31, 41, 38, 0.1);
+  --border-radius: 12px;
+  --transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease;
 }
 
 html, body {
@@ -50,6 +52,7 @@ a {
 
 a:hover {
   text-decoration: underline;
+  opacity: 0.92;
 }
 
 button {

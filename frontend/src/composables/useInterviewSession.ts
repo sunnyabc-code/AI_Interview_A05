@@ -330,10 +330,8 @@ export function useInterviewSession() {
   const generateNextQuestion = async (resolvingEndOrNext = false) => {
     isWaitingForQuestion.value = true
     if (resolvingEndOrNext) {
-      // 优先展示结束决策弹窗，而不是先显示转圈。
-      showEndDecision.value = true
       isClosingInterview.value = false
-      addSystemMessage('已完成作答，正在结束面试并生成分析结果...')
+      addSystemMessage('正在获取下一题或结束面试，请稍候…')
     } else {
       addSystemMessage('⏳ 正在生成问题，请稍候...')
     }
@@ -356,7 +354,7 @@ export function useInterviewSession() {
           addQuestionMessage(newRound)
           isWaitingForQuestion.value = false
         } else if (data.code === 200) {
-          // 后端已在 next-question 内标记完成并打分，直接进评估页（勿再调 end 以免二次等待）
+          // 后端已在 next-question 内标记完成并打分（勿再调 end 以免二次等待）
           currentRound.value = null
           interview.value = {
             ...interview.value,
@@ -366,6 +364,8 @@ export function useInterviewSession() {
           isInterviewEnded.value = true
           stopPolling()
           showEndDecision.value = true
+          isClosingInterview.value = false
+          isWaitingForQuestion.value = false
         } else {
           showEndDecision.value = false
           addSystemMessage(`生成问题失败: ${data.message || '未知错误'}`)

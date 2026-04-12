@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 
 const API_BASE_URL = 'http://localhost:8000'
+const router = useRouter()
 
 const props = defineProps<{
   show: boolean
@@ -65,6 +67,11 @@ const handleStart = () => {
   if (interview.value) {
     emit('start', interview.value)
   }
+}
+
+const openReport = () => {
+  if (!interview.value?.id) return
+  router.push(`/interview/${interview.value.id}/evaluation`)
 }
 
 const statusText = (status: string) => {
@@ -254,6 +261,21 @@ onMounted(() => {
       </div>
       
       <div class="modal-footer">
+        <button
+          v-if="interview && interview.status === 'completed'"
+          type="button"
+          class="report-btn"
+          @click="openReport"
+        >
+          <span class="icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M6 17V11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+              <path d="M12 17V8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+              <path d="M18 17V13" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+            </svg>
+          </span>
+          查看面试报告
+        </button>
         <button 
           v-if="interview && interview.status === 'pending'" 
           class="start-btn" 
@@ -479,8 +501,31 @@ onMounted(() => {
   border-top: 1px solid var(--line-soft);
   display: flex;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 0.55rem;
   background: linear-gradient(180deg, #ffffff 0%, #f9fbfa 100%);
+}
+
+.report-btn {
+  margin-right: auto;
+  background: linear-gradient(135deg, rgba(47, 93, 86, 0.12) 0%, #ffffff 55%);
+  border: 1px solid rgba(47, 93, 86, 0.28);
+  color: #264a45;
+  padding: 0.56rem 0.86rem;
+  border-radius: 10px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.24s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.36rem;
+}
+
+.report-btn:hover {
+  border-color: #2f5d56;
+  background: linear-gradient(135deg, rgba(47, 93, 86, 0.18) 0%, #f8fcfa 100%);
+  box-shadow: 0 6px 16px rgba(47, 93, 86, 0.12);
 }
 
 .start-btn {

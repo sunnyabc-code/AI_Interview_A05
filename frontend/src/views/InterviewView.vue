@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import InterviewModal from '../components/InterviewModal.vue'
 import InterviewCard from '../components/InterviewCard.vue'
@@ -15,10 +15,14 @@ const emit = defineEmits<{
 
 const router = useRouter()
 
+const POSITION_FILTER_KEY = 'interview_position_filter'
+
 const showCreateModal = ref(false)
 const showDetailModal = ref(false)
 const selectedInterview = ref<any>(null)
 const interviews = ref<any[]>([])
+const positions = ref<{ id: number; name: string; code: string }[]>([])
+const selectedPositionId = ref<number | null>(null)
 const loading = ref(false)
 const error = ref('')
 const toastMessage = ref('')
@@ -26,6 +30,12 @@ const toastType = ref<'success' | 'error'>('success')
 const showToast = ref(false)
 
 const API_BASE_URL = 'http://localhost:8000'
+
+const positionFilterLabel = computed(() => {
+  if (selectedPositionId.value == null) return '全部岗位'
+  const p = positions.value.find((x) => x.id === selectedPositionId.value)
+  return p?.name || '岗位'
+})
 
 const getInterviewRoute = (interview: any) => {
   if (interview?.mode === 'voice') {
@@ -43,12 +53,42 @@ const getAuthHeaders = () => {
   }
 }
 
+const fetchPositions = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/positions/`, {
+      headers: getAuthHeaders(),
+    })
+    if (response.ok) {
+      const data = await response.json()
+      if (data.code === 200 && Array.isArray(data.data)) {
+        positions.value = data.data
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+const setPositionFilter = (id: number | null) => {
+  selectedPositionId.value = id
+  if (id == null) {
+    localStorage.removeItem(POSITION_FILTER_KEY)
+  } else {
+    localStorage.setItem(POSITION_FILTER_KEY, String(id))
+  }
+  fetchInterviews()
+}
+
 const fetchInterviews = async () => {
   loading.value = true
   error.value = ''
   
   try {
-    const response = await fetch(`${API_BASE_URL}/api/v1/interviews/`, {
+    const q =
+      selectedPositionId.value != null
+        ? `?position_id=${selectedPositionId.value}`
+        : ''
+    const response = await fetch(`${API_BASE_URL}/api/v1/interviews${q}`, {
       headers: getAuthHeaders()
     })
     
@@ -182,6 +222,14 @@ watch(() => props.active, (newActive) => {
 })
 
 onMounted(() => {
+  const saved = localStorage.getItem(POSITION_FILTER_KEY)
+  if (saved) {
+    const n = parseInt(saved, 10)
+    if (Number.isFinite(n)) {
+      selectedPositionId.value = n
+    }
+  }
+  fetchPositions()
   if (props.active) {
     fetchInterviews()
   }
@@ -194,7 +242,7 @@ onMounted(() => {
       <div class="hero-copy">
         <p class="hero-eyebrow">Interview Workspace</p>
         <h2>面试管理中心</h2>
-        <p>创建面试、跟进进度并快速进入文本或语音模式。</p>
+        <p>按岗位筛选面试记录；结束后可随时打开评估报告（数据保存在服务端）。</p>
       </div>
       <button class="create-interview-btn" @click="handleCreateInterview">
         <span class="icon" aria-hidden="true">
@@ -206,19 +254,55 @@ onMounted(() => {
         <span>创建新面试</span>
       </button>
     </section>
+
+    <div class="position-filter" role="group" aria-label="按岗位筛选">
+      <span class="filter-label">
+        <span class="icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 6H20" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+            <path d="M7 12H17" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+            <path d="M10 18H14" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+          </svg>
+        </span>
+        岗位
+      </span>
+      <div class="filter-chips">
+        <button
+          type="button"
+          class="chip"
+          :class="{ active: selectedPositionId === null }"
+          @click="setPositionFilter(null)"
+        >
+          全部
+        </button>
+        <button
+          v-for="p in positions"
+          :key="p.id"
+          type="button"
+          class="chip"
+          :class="{ active: selectedPositionId === p.id }"
+          @click="setPositionFilter(p.id)"
+        >
+          {{ p.name }}
+        </button>
+      </div>
+    </div>
     
     <div class="interviews-list">
       <div class="section-head">
-        <h3 class="section-title">
-          <span class="icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect x="4" y="5" width="16" height="14" rx="3" stroke="currentColor" stroke-width="1.7"/>
-              <path d="M8 10H16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-              <path d="M8 14H13" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-            </svg>
-          </span>
-          <span>我的面试</span>
-        </h3>
+        <div class="section-head-inner">
+          <h3 class="section-title">
+            <span class="icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="4" y="5" width="16" height="14" rx="3" stroke="currentColor" stroke-width="1.7"/>
+                <path d="M8 10H16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+                <path d="M8 14H13" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+              </svg>
+            </span>
+            <span>我的面试</span>
+          </h3>
+          <p class="section-hint">{{ positionFilterLabel }}</p>
+        </div>
       </div>
       
       <div v-if="loading" class="loading">
@@ -370,20 +454,80 @@ onMounted(() => {
   padding: 1rem;
 }
 
-.section-head {
+.position-filter {
+  margin-top: 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.6rem;
+  gap: 0.65rem 1rem;
+}
+
+.filter-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.chip {
+  padding: 0.45rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface-soft);
+  color: var(--text);
+  font-size: 0.86rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.chip:hover {
+  border-color: #c5d4cd;
+  background: #fff;
+}
+
+.chip.active {
+  border-color: var(--accent);
+  background: rgba(47, 93, 86, 0.1);
+  color: var(--accent);
+}
+
+.section-head {
+  width: 100%;
+}
+
+.section-head-inner {
+  width: 100%;
+  padding-bottom: 0.7rem;
+  border-bottom: 1px solid var(--line-soft);
+  margin-bottom: 0.85rem;
+}
+
+.section-hint {
+  margin: 0.35rem 0 0;
+  font-size: 0.82rem;
+  color: var(--muted);
 }
 
 .section-title {
   color: var(--text);
   font-size: 1.08rem;
   font-weight: 600;
-  margin: 0 0 0.85rem 0;
-  padding-bottom: 0.7rem;
-  border-bottom: 1px solid var(--line-soft);
+  margin: 0;
   display: inline-flex;
   align-items: center;
   gap: 0.42rem;

@@ -234,6 +234,12 @@ const selectedRound = computed(() =>
     selectedInterview.value?.rounds.find(round => round.id === selectedRoundId.value)
 )
 
+function nonEmptyStringList(items: string[] | null | undefined): string[] {
+    return (items ?? []).map((s) => String(s ?? '').trim()).filter((s) => s.length > 0)
+}
+
+const selectedRoundHighlightLines = computed(() => nonEmptyStringList(selectedRound.value?.highlights))
+
 const selectedRoundAudioSrc = computed(() => {
     const audioFileUrl = selectedRound.value?.audioFileUrl
     if (!audioFileUrl) {
@@ -1857,9 +1863,10 @@ watch(filteredInterviewHistory, visibleItems => {
                 <div class="detail-grid">
                     <section class="detail-card">
                         <h2>亮点表现</h2>
-                        <ul>
-                            <li v-for="item in selectedRound.highlights" :key="item">{{ item }}</li>
+                        <ul v-if="selectedRoundHighlightLines.length">
+                            <li v-for="(item, idx) in selectedRoundHighlightLines" :key="`hl-${idx}-${item}`">{{ item }}</li>
                         </ul>
+                        <p v-else class="detail-list-empty">暂无</p>
                     </section>
 
                     <section class="detail-card">
@@ -2518,6 +2525,13 @@ watch(filteredInterviewHistory, visibleItems => {
     margin: 0;
     padding-left: 1.1rem;
     color: #475569;
+    line-height: 1.7;
+}
+
+.detail-list-empty {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.92rem;
     line-height: 1.7;
 }
 

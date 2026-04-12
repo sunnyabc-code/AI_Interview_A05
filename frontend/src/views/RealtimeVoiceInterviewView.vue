@@ -1037,16 +1037,14 @@ loadInterviewInfo()
   <div v-if="showInterviewEndedNotice" class="session-exit-overlay" aria-live="polite">
     <div v-if="!showEndDecision" class="session-exit-inner">
       <div class="session-spinner" />
-      <p class="session-exit-title">面试已结束</p>
-      <p class="session-exit-text">分析报告正在生成，请稍候…</p>
+      <p class="session-exit-title">面试已结束，分析报告正在生成</p>
     </div>
 
     <div v-else class="session-exit-card">
       <div class="session-exit-badge">已完成</div>
       <h2>面试已结束，分析报告正在生成</h2>
       <p>
-        您可以先返回面试列表，稍后在评估页面查看完整结果；
-        也可以等待结果生成后，系统会自动跳转到评估页面。
+        您可以先返回面试列表，稍后在评估页面查看完整结果；也可以等待结果生成后，系统会自动跳转到评估页面。
       </p>
       <div class="session-exit-actions">
         <button class="exit-list-btn" @click="backToInterviewList">
