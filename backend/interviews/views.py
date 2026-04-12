@@ -30,7 +30,14 @@ from interviews.serializers import (
 )
 from questions.models import Question, QuestionCategory
 from positions.models import JobKnowledge
+from user_projects.models import UserProject
 from interviews.answer_utils import is_effective_user_answer
+from interviews.interview_scheduling import (
+    enabled_categories,
+    interview_required_round_count_to_finish,
+    max_questions_per_chain,
+    target_chain_count,
+)
 from interviews.scoring_service import (
     build_evaluation_summary,
     run_scoring_for_interview,
@@ -53,7 +60,9 @@ class InterviewListCreateView(APIView):
         },
     )
     def post(self, request):
-        serializer = InterviewCreateSerializer(data=request.data)
+        serializer = InterviewCreateSerializer(
+            data=request.data, context={"request": request}
+        )
         if not serializer.is_valid():
             return APIResponse.error(
                 message="创建失败", code=400, errors=serializer.errors
@@ -91,11 +100,16 @@ class InterviewListCreateView(APIView):
         responses={200: openapi.Response("获取成功")},
     )
     def get(self, request):
-        interviews = (
-            Interview.objects.filter(user=request.user)
-            .select_related("position", "difficulty_config")
-            .order_by("-created_at")
+        interviews = Interview.objects.filter(user=request.user).select_related(
+            "position", "difficulty_config"
         )
+        position_id = request.query_params.get("position_id")
+        if position_id not in (None, ""):
+            try:
+                interviews = interviews.filter(position_id=int(position_id))
+            except (TypeError, ValueError):
+                pass
+        interviews = interviews.order_by("-created_at")
         data = InterviewSerializer(interviews, many=True).data
         return APIResponse.success(data=data, message="获取成功", code=200)
 
@@ -229,30 +243,6 @@ class InterviewNextQuestionView(APIView):
             .first()
         )
 
-    def _enabled_categories(self, interview):
-        # 固定顺序：技术 -> 项目 -> 场景，避免前端参数影响面试编排。
-        categories = []
-        if interview.enable_technical_questions:
-            categories.append("technical")
-        if interview.enable_project_questions:
-            categories.append("project")
-        if interview.enable_scenario_questions:
-            categories.append("scenario")
-        return categories
-
-    def _target_chain_count(self, interview, category_code):
-        if not interview.difficulty_config:
-            return 1
-
-        config = interview.difficulty_config
-        if category_code == "technical":
-            return max(getattr(config, "technical_chain_count", 1), 0)
-        if category_code == "project":
-            return max(getattr(config, "project_chain_count", 1), 0)
-        if category_code == "scenario":
-            return max(getattr(config, "scenario_chain_count", 1), 0)
-        return 0
-
     def _pick_question_from_category(self, interview, category_code, used_question_ids):
         base_qs = Question.objects.filter(
             position=interview.position,
@@ -296,29 +286,14 @@ class InterviewNextQuestionView(APIView):
 
         return base_qs.order_by("usage_count", "id").first()
 
-    def _max_questions_per_chain(self, interview, category_code):
-        if not interview.difficulty_config:
-            return 1
-
-        config = interview.difficulty_config
-        if category_code == "technical":
-            return max(getattr(config, "technical_max_followup_depth", 1), 1)
-        if category_code == "project":
-            return max(getattr(config, "project_max_followup_depth", 1), 1)
-        if category_code == "scenario":
-            return max(getattr(config, "scenario_max_followup_depth", 1), 1)
-        return 1
-
     def _compute_chain_state(self, interview, category_code):
         category_rounds = InterviewRound.objects.filter(
             interview=interview,
             category__code=category_code,
         )
         last_round = category_rounds.order_by("-round_number").first()
-        max_questions_per_chain = self._max_questions_per_chain(
-            interview, category_code
-        )
-        max_followup_index = max_questions_per_chain - 1
+        per_chain = max_questions_per_chain(interview, category_code)
+        max_followup_index = per_chain - 1
 
         # followup_depth: 0=主问题，1开始为追问；当达到 max_followup_index 后开启下一条链。
         if last_round and last_round.followup_depth < max_followup_index:
@@ -335,11 +310,9 @@ class InterviewNextQuestionView(APIView):
         根据 difficulty_config 自动计算下一题的题型与链路位置。
         返回: (category_code, chain_index, followup_depth) 或 None(全部完成)
         """
-        enabled_categories = self._enabled_categories(interview)
-        for category_code in enabled_categories:
-            target_chains = self._target_chain_count(interview, category_code)
-            if target_chains <= 0:
-                continue
+        category_list = enabled_categories(interview)
+        for category_code in category_list:
+            target_chains = target_chain_count(interview, category_code)
 
             category_rounds = InterviewRound.objects.filter(
                 interview=interview,
@@ -350,10 +323,8 @@ class InterviewNextQuestionView(APIView):
             if not last_round:
                 return category_code, 1, 0
 
-            max_questions_per_chain = self._max_questions_per_chain(
-                interview, category_code
-            )
-            max_followup_index = max_questions_per_chain - 1
+            per_chain = max_questions_per_chain(interview, category_code)
+            max_followup_index = per_chain - 1
 
             # 优先继续当前链直到达到该链最大提问数。
             if last_round.followup_depth < max_followup_index:
@@ -401,6 +372,65 @@ class InterviewNextQuestionView(APIView):
                 out.append(text)
         return out
 
+    def _project_chain_prior_questions(self, interview, chain_index):
+        """当前项目经历链上已问过的问题文本（按轮次顺序），供追问 prompt 使用。"""
+        rounds = (
+            InterviewRound.objects.filter(
+                interview=interview,
+                category__code="project",
+                chain_index=chain_index,
+            )
+            .order_by("round_number")
+            .only("question_content")
+        )
+        out = []
+        for r in rounds:
+            text = (r.question_content or "").strip()
+            if text:
+                out.append(text)
+        return out
+
+    def _resolve_user_project_for_chain(
+        self, interview, chain_index, followup_depth
+    ):
+        """
+        项目链：主问在 user_projects 中独立随机（优先当前岗位，否则该用户全部项目）；
+        追问沿用该链主问写入的 user_project_id。无数据时返回 None。
+        """
+        if followup_depth > 0:
+            root = (
+                InterviewRound.objects.filter(
+                    interview=interview,
+                    category__code="project",
+                    chain_index=chain_index,
+                    followup_depth=0,
+                )
+                .order_by("round_number")
+                .first()
+            )
+            if root and root.user_project_id:
+                try:
+                    return UserProject.objects.filter(
+                        project_id=root.user_project_id,
+                        user_id=interview.user_id,
+                    ).first()
+                except DatabaseError:
+                    return None
+            return None
+
+        try:
+            qs = UserProject.objects.filter(
+                user_id=interview.user_id,
+                position_id=interview.position_id,
+            )
+            if not qs.exists():
+                qs = UserProject.objects.filter(user_id=interview.user_id)
+            if not qs.exists():
+                return None
+            return random.choice(list(qs))
+        except DatabaseError:
+            return None
+
     def _resolve_technical_topic(self, interview, chain_index, followup_depth):
         """
         技术链：主问在 job_knowledge 中按当前岗位的 job_id（= job_positions.id）随机选题；
@@ -439,15 +469,47 @@ class InterviewNextQuestionView(APIView):
         except DatabaseError:
             return None, None
 
+    def _project_question_bank_reference_block(self, ref_question):
+        """
+        questions 表中 category=project 的题为「项目经历」类题库/知识库参考，供大模型结合 user_projects 出题。
+        ref_question 为 None 时返回空串。
+        """
+        if not ref_question:
+            return ""
+        title = (ref_question.title or "").strip()
+        content = (ref_question.content or "").strip()
+        if not title and not content:
+            return ""
+        lines = [
+            "【项目经历·知识库/题库参考】",
+            "（请结合以下考察方向与候选人简历中的项目描述出题，可借鉴要点但不要逐句照抄原题当作最终输出）",
+        ]
+        if title:
+            lines.append(f"参考标题：{title}")
+        if content:
+            lines.append(f"参考要点：{content}")
+        return "\n".join(lines) + "\n\n"
+
     def _build_generation_prompt(
-        self, interview, category_code, chain_index, followup_depth
+        self,
+        interview,
+        category_code,
+        chain_index,
+        followup_depth,
+        project_bank_reference=None,
     ):
         """
         按题型 + difficulty_config 生成发给百炼/LLM 的 prompt。
-        技术题结合 job_knowledge（按岗位 job_id 全表随机，排除本场已用序号）；追问含历史问题列表。
-        返回 (prompt, meta)，meta 含 chain_topic_label、job_knowledge_serial（仅技术链有值）。
+        技术题结合 job_knowledge；场景题仅走模型/应用知识库，逻辑不变。
+        项目经历题：同时注入 (1) questions 表中分类为 project 的题库参考 (2) user_projects 的描述与成果；
+        最终问题始终由模型生成，不直接返回题库原文。
+        返回 (prompt, meta)，meta 含 chain_topic_label、job_knowledge_serial、user_project_id。
         """
-        meta = {"chain_topic_label": "", "job_knowledge_serial": None}
+        meta = {
+            "chain_topic_label": "",
+            "job_knowledge_serial": None,
+            "user_project_id": None,
+        }
         difficulty_code = (
             interview.difficulty_config.difficulty_code
             if interview.difficulty_config
@@ -525,19 +587,70 @@ class InterviewNextQuestionView(APIView):
             return prompt, meta
 
         if category_code == "project":
-            if followup_depth == 0:
-                prompt = (
-                    f"{ctx}\n"
-                    f"请生成一个关于「{pos_name}」岗位项目经历的问题。\n"
-                    "只输出问题本身，不要输出答案、编号或解释。"
+            kb_block = self._project_question_bank_reference_block(
+                project_bank_reference
+            )
+            proj = self._resolve_user_project_for_chain(
+                interview, chain_index, followup_depth
+            )
+            if proj:
+                meta["chain_topic_label"] = (proj.project_name or "").strip()
+                meta["user_project_id"] = proj.project_id
+                pname = (proj.project_name or "").strip() or "（未命名）"
+                pdesc = (proj.project_description or "").strip() or "（无）"
+                pres = (proj.project_result or "").strip() or "（无）"
+                project_block = (
+                    f"项目名称：{pname}\n"
+                    f"项目描述：{pdesc}\n"
+                    f"项目成果：{pres}"
                 )
             else:
-                prompt = (
-                    f"{ctx}\n"
-                    f"请生成一个不同的、关于「{pos_name}」岗位项目经历的问题，"
-                    "与之前问过的问题不重复。\n"
-                    "只输出问题本身，不要输出答案、编号或解释。"
-                )
+                project_block = None
+
+            head = f"{ctx}\n{kb_block}"
+
+            if followup_depth == 0:
+                if project_block:
+                    prompt = (
+                        f"{head}"
+                        f"候选人项目经历（与「{pos_name}」岗位对应）：\n"
+                        f"{project_block}\n\n"
+                        "请结合知识库参考（如有）与上述候选人项目描述、成果，生成一道面试问题，"
+                        "考察其在项目中的实际参与与贡献。\n"
+                        "只输出问题本身，不要输出答案、编号或解释。"
+                    )
+                else:
+                    prompt = (
+                        f"{head}"
+                        f"请结合知识库参考（如有），生成一个关于「{pos_name}」岗位项目经历的问题。\n"
+                        "只输出问题本身，不要输出答案、编号或解释。"
+                    )
+            else:
+                if project_block:
+                    prior = self._project_chain_prior_questions(
+                        interview, chain_index
+                    )
+                    if prior:
+                        history_block = "\n".join(
+                            f"{i + 1}. {q}" for i, q in enumerate(prior)
+                        )
+                    else:
+                        history_block = "（暂无）"
+                    prompt = (
+                        f"{head}\n"
+                        f"候选人项目经历（与「{pos_name}」岗位对应）：\n"
+                        f"{project_block}\n\n"
+                        f"历史已经问过的问题：\n{history_block}\n\n"
+                        "请结合知识库参考（如有）与同一项目经历生成追问，与已有问题不重复、从不同角度考察。\n"
+                        "只输出问题本身，不要输出答案、编号或解释。"
+                    )
+                else:
+                    prompt = (
+                        f"{head}"
+                        f"请结合知识库参考（如有），生成一个不同的、关于「{pos_name}」岗位项目经历的问题，"
+                        "与之前问过的问题不重复。\n"
+                        "只输出问题本身，不要输出答案、编号或解释。"
+                    )
             return prompt, meta
 
         prompt = (
@@ -596,8 +709,8 @@ class InterviewNextQuestionView(APIView):
                 message="参数错误", code=400, errors=request_serializer.errors
             )
 
-        enabled_categories = self._enabled_categories(interview)
-        if not enabled_categories:
+        enabled_categories_list = enabled_categories(interview)
+        if not enabled_categories_list:
             return APIResponse.error(message="未启用任何题型，无法生成下一题", code=400)
 
         force_category = request_serializer.validated_data.get("force_category")
@@ -631,8 +744,15 @@ class InterviewNextQuestionView(APIView):
 
         next_slot = self._determine_next_slot(interview)
         if not next_slot:
-            end_time = timezone.now()
             actual_rounds = rounds_qs.count()
+            required_rounds = interview_required_round_count_to_finish(interview)
+            if required_rounds > 0 and actual_rounds < required_rounds:
+                return APIResponse.error(
+                    message="尚未完成全部计划轮次，无法结束面试并生成评估",
+                    code=400,
+                )
+
+            end_time = timezone.now()
             duration_seconds = interview.duration_seconds
             if interview.start_time:
                 duration_seconds = max(
@@ -665,8 +785,16 @@ class InterviewNextQuestionView(APIView):
         selected_category_code, chain_index, followup_depth = next_slot
 
         selected_question = None
-        # True（默认）：跳过题库，按题型 + 难度 + job_knowledge 走生成；False：优先抽题库
-        if not getattr(settings, "INTERVIEW_PREFER_LLM_OVER_BANK", True):
+        project_bank_reference = None
+        # True（默认）：技术/场景跳过本地题库走生成；False：技术/场景优先抽 questions表。
+        # 项目题：始终由大模型/百炼生成最终题干；本地 questions 中 category=project 的条目仅作 prompt 内知识库参考，
+        # 并与 user_projects 中的项目描述、成果一并传入。
+        prefer_llm = getattr(settings, "INTERVIEW_PREFER_LLM_OVER_BANK", True)
+        if selected_category_code == "project":
+            project_bank_reference = self._pick_question_from_category(
+                interview, "project", used_question_ids
+            )
+        elif not prefer_llm:
             selected_question = self._pick_question_from_category(
                 interview, selected_category_code, used_question_ids
             )
@@ -687,7 +815,11 @@ class InterviewNextQuestionView(APIView):
 
         if not selected_question:
             llm_prompt, prompt_meta = self._build_generation_prompt(
-                interview, selected_category_code, chain_index, followup_depth
+                interview,
+                selected_category_code,
+                chain_index,
+                followup_depth,
+                project_bank_reference=project_bank_reference,
             )
             generated_question = None
             new_dashscope_session = ""
@@ -739,6 +871,7 @@ class InterviewNextQuestionView(APIView):
                 dashscope_session_id=new_dashscope_session,
                 chain_topic_label=prompt_meta.get("chain_topic_label") or "",
                 job_knowledge_serial=prompt_meta.get("job_knowledge_serial"),
+                user_project_id=prompt_meta.get("user_project_id"),
             )
 
             update_fields = []
@@ -777,6 +910,7 @@ class InterviewNextQuestionView(APIView):
                 "llm_prompt": llm_prompt,
                 "chain_topic_label": interview_round.chain_topic_label or None,
                 "job_knowledge_serial": interview_round.job_knowledge_serial,
+                "user_project_id": interview_round.user_project_id,
             }
             return APIResponse.success(
                 data=response_data,
@@ -1103,6 +1237,14 @@ class InterviewEndView(APIView):
                     code=400,
                 )
 
+        round_count = InterviewRound.objects.filter(interview=interview).count()
+        required_finish = interview_required_round_count_to_finish(interview)
+        if required_finish > 0 and round_count < required_finish:
+            return APIResponse.error(
+                message="尚未完成全部计划轮次，无法结束面试并生成评估",
+                code=400,
+            )
+
         end_time = timezone.now()
         total_duration = int((end_time - interview.start_time).total_seconds())
         actual_duration = total_duration - (interview.total_pause_duration or 0)
@@ -1119,14 +1261,20 @@ class InterviewEndView(APIView):
 
         voice_llm_result = None
         voice_llm_error = ""
+        voice_llm_result_status = "pending"
         try:
             from evaluations.voice_llm_result_service import (
-                generate_interview_voice_llm_result,
+                try_generate_interview_voice_llm_result_when_ready,
             )
 
-            voice_llm_result = generate_interview_voice_llm_result(interview.id)
+            voice_llm_result, voice_llm_error = (
+                try_generate_interview_voice_llm_result_when_ready(interview.id)
+            )
+            if voice_llm_result:
+                voice_llm_result_status = voice_llm_result.status
         except Exception as exc:  # noqa: BLE001
             voice_llm_error = str(exc)
+            voice_llm_result_status = "failed"
 
         return APIResponse.success(
             data={
@@ -1135,9 +1283,7 @@ class InterviewEndView(APIView):
                 "end_time": interview.end_time,
                 "total_duration": total_duration,
                 "actual_duration": actual_duration,
-                "voice_llm_result_status": (
-                    voice_llm_result.status if voice_llm_result else "failed"
-                ),
+                "voice_llm_result_status": voice_llm_result_status,
                 "voice_llm_result_id": (
                     voice_llm_result.id if voice_llm_result else None
                 ),

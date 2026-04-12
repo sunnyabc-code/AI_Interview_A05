@@ -150,6 +150,10 @@ MEDIA_ROOT = BASE_DIR / "media"
 
 # 单文件上传大小限制（默认20MB）
 AUDIO_UPLOAD_MAX_BYTES = 20 * 1024 * 1024
+# 浏览器 WebM/Opus 转 WAV 时使用。可为 ffmpeg.exe 的绝对路径，或 gyan 解压后的目录（将尝试 bin\ffmpeg.exe）。
+# 也可在 backend/.env 中设置，例如：
+# FFMPEG_BINARY=D:/Homework_Contests/contest/服务外包/资料/软管/ffmpeg-8.1-essentials_build/ffmpeg-8.1-essentials_build
+FFMPEG_BINARY = os.getenv("FFMPEG_BINARY", "").strip()
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -256,7 +260,7 @@ INTERVIEW_PREFER_LLM_OVER_BANK = os.getenv(
 
 # iMentiv 音频情感分析配置（硬编码，仅用于本地调试）
 IMENTIV_BASE_URL = "https://api.imentiv.ai"
-IMENTIV_API_KEY = "wzSHXmW6vUZiuHsAz6c87eiFhsnnW7iX9lUk2z4dvUYs5zIUyeMItBhGHlz_o5Wrg6s"
+IMENTIV_API_KEY = "zRkQbCzcz1OuH0lbe6i9AppfHXUpu-5T4OpZSXkJNv6jIcA90G75YwuZ2xF0Dbmcc3k"
 IMENTIV_LANGUAGE = "zh"
 IMENTIV_TIMEOUT_SECONDS = 60
 IMENTIV_POLL_INTERVAL_SECONDS = 2.0

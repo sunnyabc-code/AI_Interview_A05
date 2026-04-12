@@ -81,6 +81,7 @@ const cardThemeClass = (positionName: string) => {
   }
   return 'theme-default'
 }
+
 </script>
 
 <template>

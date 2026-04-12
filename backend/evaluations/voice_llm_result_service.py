@@ -107,6 +107,38 @@ def _build_round_payloads(interview: Interview) -> Tuple[List[Dict[str, Any]], i
     return payloads, analyzed_count
 
 
+def _check_all_round_voice_analyses_ready(interview: Interview) -> Tuple[bool, str]:
+    rounds = list(
+        InterviewRound.objects.filter(interview=interview)
+        .order_by("round_number")
+        .only("id", "round_number")
+    )
+    if not rounds:
+        return False, "该面试暂无轮次，无法生成语音总结"
+
+    analyzed_round_ids = set(
+        VoiceAnalysis.objects.filter(round__interview=interview, status="success")
+        .exclude(round_id__isnull=True)
+        .values_list("round_id", flat=True)
+    )
+
+    missing_round_numbers = [
+        round_obj.round_number
+        for round_obj in rounds
+        if round_obj.id not in analyzed_round_ids
+    ]
+    if missing_round_numbers:
+        display_numbers = "、".join(str(item) for item in missing_round_numbers[:5])
+        if len(missing_round_numbers) > 5:
+            display_numbers = f"{display_numbers}..."
+        return (
+            False,
+            f"仍有{len(missing_round_numbers)}个轮次语音分析未完成（第{display_numbers}轮）",
+        )
+
+    return True, ""
+
+
 def _build_messages(
     interview: Interview, round_payloads: List[Dict[str, Any]]
 ) -> List[Dict[str, str]]:
@@ -226,6 +258,10 @@ def generate_interview_voice_llm_result(interview_id: int) -> VoiceLLMResult:
     except Interview.DoesNotExist as exc:
         raise VoiceLLMResultServiceError("面试不存在") from exc
 
+    is_ready, not_ready_reason = _check_all_round_voice_analyses_ready(interview)
+    if not is_ready:
+        raise VoiceLLMResultServiceError(not_ready_reason)
+
     with transaction.atomic():
         result_obj, _ = VoiceLLMResult.objects.get_or_create(interview=interview)
         result_obj.status = "running"
@@ -302,3 +338,28 @@ def generate_interview_voice_llm_result(interview_id: int) -> VoiceLLMResult:
             update_fields=["status", "error_message", "raw_input_json", "updated_at"]
         )
         raise VoiceLLMResultServiceError(str(exc)) from exc
+
+
+def try_generate_interview_voice_llm_result_when_ready(
+    interview_id: int,
+) -> Tuple[VoiceLLMResult | None, str]:
+    try:
+        interview = Interview.objects.select_related("position").get(id=interview_id)
+    except Interview.DoesNotExist:
+        return None, "面试不存在"
+
+    if interview.status != "completed":
+        return None, "面试未结束，暂不触发语音总结"
+
+    existing = VoiceLLMResult.objects.filter(interview=interview).first()
+    if existing and existing.status in {"running", "success"}:
+        return existing, ""
+
+    is_ready, reason = _check_all_round_voice_analyses_ready(interview)
+    if not is_ready:
+        return None, reason
+
+    try:
+        return generate_interview_voice_llm_result(interview_id), ""
+    except VoiceLLMResultServiceError as exc:
+        return None, str(exc)

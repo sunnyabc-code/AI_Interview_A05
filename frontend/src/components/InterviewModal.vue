@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 
 const API_BASE_URL = 'http://localhost:8000'
 
@@ -25,6 +25,7 @@ const form = ref({
 
 const positions = ref<any[]>([])
 const difficultyConfigs = ref<any[]>([])
+const userProjects = ref<{ position: number }[]>([])
 const loading = ref(false)
 const error = ref('')
 const success = ref('')
@@ -67,6 +68,36 @@ const fetchDifficultyConfigs = async () => {
   }
 }
 
+const fetchUserProjects = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/user-projects/`, {
+      headers: getAuthHeaders()
+    })
+    if (response.ok) {
+      const data = await response.json()
+      userProjects.value = data.data || []
+    }
+  } catch (err) {
+    console.error('获取项目经历错误:', err)
+  }
+}
+
+const hasProjectForSelectedPosition = computed(() => {
+  if (form.value.position === null || form.value.position === undefined) return false
+  return userProjects.value.some((p) => p.position === form.value.position)
+})
+
+const projectPrerequisiteHint = computed(() => {
+  if (!form.value.enable_project_questions) return ''
+  if (form.value.position === null || form.value.position === undefined) {
+    return '已勾选项目经历题：请选择岗位，并确保已在「个人中心」为该岗位填写项目经历。'
+  }
+  if (!hasProjectForSelectedPosition.value) {
+    return '已勾选项目经历题：请先在「个人中心 → 项目经历」为该岗位添加至少一条记录，否则无法创建面试。'
+  }
+  return ''
+})
+
 const calculateTotalRounds = () => {
   const selectedConfig = difficultyConfigs.value.find(c => c.id === form.value.difficulty_config)
   
@@ -103,6 +134,12 @@ const handleSubmit = async () => {
     return
   }
 
+  if (form.value.enable_project_questions && !hasProjectForSelectedPosition.value) {
+    error.value =
+      '已勾选项目经历题，请先在个人中心为所选岗位填写至少一条项目经历。'
+    return
+  }
+
   loading.value = true
   error.value = ''
   success.value = ''
@@ -123,7 +160,14 @@ const handleSubmit = async () => {
         resetForm()
       }, 1500)
     } else {
-      error.value = data.message || '创建失败'
+      const errs = data.errors as Record<string, string[] | string> | undefined
+      if (errs && typeof errs === 'object') {
+        const firstKey = Object.keys(errs)[0]
+        const v = firstKey ? errs[firstKey] : null
+        error.value = Array.isArray(v) ? v[0] : typeof v === 'string' ? v : data.message || '创建失败'
+      } else {
+        error.value = data.message || '创建失败'
+      }
     }
   } catch (err) {
     error.value = '网络错误，请稍后重试'
@@ -166,6 +210,7 @@ watch(() => props.show, (newVal) => {
   if (newVal) {
     fetchPositions()
     fetchDifficultyConfigs()
+    fetchUserProjects()
   }
 })
 </script>
@@ -281,6 +326,7 @@ watch(() => props.show, (newVal) => {
               <span>场景题</span>
             </label>
           </div>
+          <p v-if="projectPrerequisiteHint" class="form-inline-warn">{{ projectPrerequisiteHint }}</p>
         </div>
 
         <div class="form-group">
@@ -572,6 +618,17 @@ watch(() => props.show, (newVal) => {
 .check-icon svg {
   width: 100%;
   height: 100%;
+}
+
+.form-inline-warn {
+  margin: 0.35rem 0 0;
+  padding: 0.5rem 0.55rem;
+  border-radius: 10px;
+  background: #fff8f2;
+  border: 1px solid #f0dcc8;
+  color: #8a4a1f;
+  font-size: 0.78rem;
+  line-height: 1.45;
 }
 
 .form-hint {
