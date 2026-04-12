@@ -1119,14 +1119,20 @@ class InterviewEndView(APIView):
 
         voice_llm_result = None
         voice_llm_error = ""
+        voice_llm_result_status = "pending"
         try:
             from evaluations.voice_llm_result_service import (
-                generate_interview_voice_llm_result,
+                try_generate_interview_voice_llm_result_when_ready,
             )
 
-            voice_llm_result = generate_interview_voice_llm_result(interview.id)
+            voice_llm_result, voice_llm_error = (
+                try_generate_interview_voice_llm_result_when_ready(interview.id)
+            )
+            if voice_llm_result:
+                voice_llm_result_status = voice_llm_result.status
         except Exception as exc:  # noqa: BLE001
             voice_llm_error = str(exc)
+            voice_llm_result_status = "failed"
 
         return APIResponse.success(
             data={
@@ -1135,9 +1141,7 @@ class InterviewEndView(APIView):
                 "end_time": interview.end_time,
                 "total_duration": total_duration,
                 "actual_duration": actual_duration,
-                "voice_llm_result_status": (
-                    voice_llm_result.status if voice_llm_result else "failed"
-                ),
+                "voice_llm_result_status": voice_llm_result_status,
                 "voice_llm_result_id": (
                     voice_llm_result.id if voice_llm_result else None
                 ),

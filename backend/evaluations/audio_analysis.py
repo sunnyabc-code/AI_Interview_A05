@@ -16,7 +16,8 @@ class AudioAnalysisError(Exception):
 
 
 class AudioAnalysisService:
-    FILLER_WORDS = ["那个", "然后", "呃", "啊"]
+    HESITATION_TOKENS = ["嗯", "啊", "呃", "恩", "唔"]
+    DEMONSTRATIVE_TOKENS = ["这个", "那个"]
     TARGET_SR = 16000
 
     def __init__(self, vad_mode=2):
@@ -147,10 +148,19 @@ class AudioAnalysisService:
         return 0.0
 
     def _count_fillers(self, transcript):
-        counts = {}
-        for token in self.FILLER_WORDS:
-            counts[token] = len(re.findall(re.escape(token), transcript))
-        return counts
+        hesitation_count = sum(
+            len(re.findall(re.escape(token), transcript))
+            for token in self.HESITATION_TOKENS
+        )
+        demonstrative_count = sum(
+            len(re.findall(re.escape(token), transcript))
+            for token in self.DEMONSTRATIVE_TOKENS
+        )
+
+        return {
+            "嗯/啊/呃": hesitation_count,
+            "这个/那个": demonstrative_count,
+        }
 
     def _compute_rms_stats(self, y):
         if y is None or len(y) == 0:

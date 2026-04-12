@@ -116,17 +116,23 @@ class InterviewVoiceLLMResultRunView(APIView):
 
         try:
             from evaluations.voice_llm_result_service import (
-                VoiceLLMResultServiceError,
-                generate_interview_voice_llm_result,
+                try_generate_interview_voice_llm_result_when_ready,
             )
 
-            result = generate_interview_voice_llm_result(interview_id)
-        except VoiceLLMResultServiceError as exc:
-            return APIResponse.error(
-                message="音频大模型总结生成失败",
-                code=400,
-                errors={"detail": str(exc)},
+            result, waiting_reason = try_generate_interview_voice_llm_result_when_ready(
+                interview_id
             )
+            if not result:
+                return APIResponse.success(
+                    data={
+                        "interview_id": interview_id,
+                        "voice_llm_result_id": None,
+                        "status": "pending",
+                        "waiting_reason": waiting_reason or "结果等待生成",
+                    },
+                    message="音频大模型总结等待生成",
+                    code=202,
+                )
         except Exception as exc:  # noqa: BLE001
             return APIResponse.error(
                 message="音频大模型总结生成失败",

@@ -70,7 +70,9 @@ def _run_async_transcription(audio_id: int, force_replace_answer: bool = False):
 
     round_obj = audio_obj.round
     current_answer = (round_obj.user_answer or "").strip()
-    should_replace_answer = force_replace_answer or (not current_answer or current_answer == "1")
+    should_replace_answer = force_replace_answer or (
+        not current_answer or current_answer == "1"
+    )
     if should_replace_answer:
         round_obj.user_answer = transcript
         round_obj.save(update_fields=["user_answer"])
@@ -78,6 +80,14 @@ def _run_async_transcription(audio_id: int, force_replace_answer: bool = False):
     audio_obj.asr_status = "success"
     audio_obj.error_message = ""
     audio_obj.save(update_fields=["asr_status", "error_message", "updated_at"])
+
+    # ASR完成后再次触发语音分析，避免分析先执行导致 transcript 为空而语速为0。
+    try:
+        _enqueue_local_voice_analysis(audio_obj.id)
+    except Exception:
+        # 不影响转写主流程，语音分析可由后续轮询或手动触发。
+        pass
+
     close_old_connections()
 
 
@@ -122,7 +132,9 @@ def _convert_uploaded_audio_to_wav(audio_file, round_id: int):
             wav_file.writeframes(pcm16.tobytes())
 
         duration_seconds = float(len(y) / sr) if sr else float(len(y) / target_sr)
-        original_name = os.path.splitext(os.path.basename(getattr(audio_file, "name", "")))[0].strip()
+        original_name = os.path.splitext(
+            os.path.basename(getattr(audio_file, "name", ""))
+        )[0].strip()
         if not original_name:
             original_name = f"round_{round_id}"
 
@@ -169,10 +181,39 @@ def _run_async_voice_analysis(audio_id: int):
     audio_obj.save(update_fields=["analysis_status", "error_message", "updated_at"])
 
     transcript = (audio_obj.round.user_answer or "").strip()
+    if not transcript or transcript == "1":
+        # 兜底：当ASR异步尚未回填时，直接基于已上传音频做一次即时转写，避免语速恒为0。
+        try:
+            transcript_from_audio, _ = transcribe_audio_file(
+                audio_obj.file_key,
+                language=getattr(settings, "ASR_LANGUAGE", "zh"),
+            )
+            transcript = (transcript_from_audio or "").strip()
+            if transcript:
+                round_obj = audio_obj.round
+                current_answer = (round_obj.user_answer or "").strip()
+                if not current_answer or current_answer == "1":
+                    round_obj.user_answer = transcript
+                    round_obj.save(update_fields=["user_answer"])
+        except Exception:
+            # 转写兜底失败时继续使用空文本，避免中断分析流程。
+            transcript = ""
+
     service = AudioAnalysisService(vad_mode=2)
 
     try:
         service.analyze_and_save(audio_obj, transcript=transcript)
+        try:
+            from evaluations.voice_llm_result_service import (
+                try_generate_interview_voice_llm_result_when_ready,
+            )
+
+            try_generate_interview_voice_llm_result_when_ready(
+                audio_obj.round.interview_id
+            )
+        except Exception:
+            # 不影响单轮语音分析结果，面试级总结可后续重试触发。
+            pass
     except AudioAnalysisError as exc:
         mark_audio_analysis_failed(audio_obj, str(exc))
     except Exception as exc:
@@ -183,6 +224,7 @@ def _run_async_voice_analysis(audio_id: int):
 
 def _enqueue_local_voice_analysis(audio_id: int):
     _ANALYSIS_EXECUTOR.submit(_run_async_voice_analysis, audio_id)
+
 
 def _enqueue_imentiv_analysis(audio_id):
     from evaluations.tasks import analyze_imentiv_audio_task
@@ -384,13 +426,6 @@ class InterviewRoundAudioUploadView(APIView):
         warning_messages = []
 
         try:
-            _enqueue_local_voice_analysis(audio_obj.id)
-        except Exception as exc:
-            # 兜底策略：线程池投递失败时同步执行一次分析，避免状态长期停留 pending。
-            warning_messages.append(f"本地语音分析异步任务投递失败，已降级为同步分析: {exc}")
-            _run_async_voice_analysis(audio_obj.id)
-
-        try:
             _enqueue_imentiv_analysis(audio_obj.id)
         except Exception as exc:
             audio_obj.imentiv_analysis_status = "failed"
@@ -407,9 +442,12 @@ class InterviewRoundAudioUploadView(APIView):
         try:
             _enqueue_local_asr(audio_obj.id, force_replace_answer=bool(existing_audio))
         except Exception as exc:
-            # 兜底策略：线程池投递失败时同步执行一次转写，避免前端因为500中断流程。
+            # 兜底策略：线程池投递失败时同步执行一次转写。
+            # 注意：_run_async_transcription 内会在完成后触发语音分析，实现“先ASR后分析”。
             warning_messages.append(f"ASR异步任务投递失败，已降级为同步转写: {exc}")
-            _run_async_transcription(audio_obj.id, force_replace_answer=bool(existing_audio))
+            _run_async_transcription(
+                audio_obj.id, force_replace_answer=bool(existing_audio)
+            )
 
         response_message = f"{message}，转写处理中"
         if warning_messages:
