@@ -150,6 +150,10 @@ MEDIA_ROOT = BASE_DIR / "media"
 
 # 单文件上传大小限制（默认20MB）
 AUDIO_UPLOAD_MAX_BYTES = 20 * 1024 * 1024
+# 浏览器 WebM/Opus 转 WAV 时使用。可为 ffmpeg.exe 的绝对路径，或 gyan 解压后的目录（将尝试 bin\ffmpeg.exe）。
+# 也可在 backend/.env 中设置，例如：
+# FFMPEG_BINARY=D:/Homework_Contests/contest/服务外包/资料/软管/ffmpeg-8.1-essentials_build/ffmpeg-8.1-essentials_build
+FFMPEG_BINARY = os.getenv("FFMPEG_BINARY", "").strip()
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

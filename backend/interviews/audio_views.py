@@ -1,4 +1,6 @@
 import os
+import shutil
+import subprocess
 from concurrent.futures import ThreadPoolExecutor
 import tempfile
 import wave
@@ -95,6 +97,66 @@ def _enqueue_local_asr(audio_id: int, force_replace_answer: bool = False):
     _ASR_EXECUTOR.submit(_run_async_transcription, audio_id, force_replace_answer)
 
 
+def _resolve_ffmpeg_executable() -> str | None:
+    """settings.FFMPEG_BINARY →可执行文件路径；可为目录（自动找 bin\\ffmpeg.exe）。"""
+    raw = (getattr(settings, "FFMPEG_BINARY", None) or "").strip()
+    if raw:
+        p = os.path.normpath(os.path.expanduser(raw))
+        if os.path.isfile(p):
+            return p
+        if os.path.isdir(p):
+            for candidate in (
+                os.path.join(p, "bin", "ffmpeg.exe"),
+                os.path.join(p, "ffmpeg.exe"),
+                os.path.join(p, "bin", "ffmpeg"),
+                os.path.join(p, "ffmpeg"),
+            ):
+                if os.path.isfile(candidate):
+                    return candidate
+    return shutil.which("ffmpeg")
+
+
+def _wav_duration_seconds(path: str) -> float:
+    with wave.open(path, "rb") as wf:
+        n = wf.getnframes()
+        fr = wf.getframerate() or 1
+        return float(n) / float(fr)
+
+
+def _ffmpeg_pcm_wav(src: str, dest_wav: str, target_sr: int) -> None:
+    exe = _resolve_ffmpeg_executable()
+    if not exe:
+        raise RuntimeError(
+            "未找到 ffmpeg。请在 .env 设置 FFMPEG_BINARY=你的ffmpeg.exe路径，"
+            "或将 ffmpeg 加入系统 PATH。"
+        )
+    cmd = [
+        exe,
+        "-y",
+        "-i",
+        src,
+        "-ar",
+        str(target_sr),
+        "-ac",
+        "1",
+        "-c:a",
+        "pcm_s16le",
+        dest_wav,
+    ]
+    creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0
+    completed = subprocess.run(
+        cmd,
+        capture_output=True,
+        timeout=120,
+        text=True,
+        creationflags=creationflags,
+    )
+    if completed.returncode != 0:
+        err = (completed.stderr or completed.stdout or "").strip()
+        tail = err[-600:] if err else "无输出"
+        raise RuntimeError(f"ffmpeg 失败: {tail}")
+
+
 def _convert_uploaded_audio_to_wav(audio_file, round_id: int):
     """将上传音频统一转换为 wav，返回临时文件路径和元数据。"""
     temp_input_path = None
@@ -114,27 +176,48 @@ def _convert_uploaded_audio_to_wav(audio_file, round_id: int):
         numpy = import_module("numpy")
 
         target_sr = int(getattr(settings, "AUDIO_CONVERT_TARGET_SR", 16000))
-        y, sr = librosa.load(temp_input_path, sr=target_sr, mono=True)
-        if y is None or len(y) == 0:
-            raise ValueError("音频文件为空，无法转换为 WAV")
+        librosa_err: Exception | None = None
+        try:
+            y, sr = librosa.load(temp_input_path, sr=target_sr, mono=True)
+        except Exception as exc:
+            librosa_err = exc
+            y = None
+            sr = None
 
-        y = numpy.clip(y, -1.0, 1.0)
-        pcm16 = (y * 32767.0).astype(numpy.int16)
+        if y is not None:
+            if len(y) == 0:
+                raise ValueError("音频文件为空，无法转换为 WAV")
 
-        temp_output = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
-        temp_output_path = temp_output.name
-        temp_output.close()
+            y = numpy.clip(y, -1.0, 1.0)
+            pcm16 = (y * 32767.0).astype(numpy.int16)
 
-        with wave.open(temp_output_path, "wb") as wav_file:
-            wav_file.setnchannels(1)
-            wav_file.setsampwidth(2)
-            wav_file.setframerate(target_sr)
-            wav_file.writeframes(pcm16.tobytes())
+            temp_output = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+            temp_output_path = temp_output.name
+            temp_output.close()
 
-        duration_seconds = float(len(y) / sr) if sr else float(len(y) / target_sr)
-        original_name = os.path.splitext(
-            os.path.basename(getattr(audio_file, "name", ""))
-        )[0].strip()
+            with wave.open(temp_output_path, "wb") as wav_file:
+                wav_file.setnchannels(1)
+                wav_file.setsampwidth(2)
+                wav_file.setframerate(target_sr)
+                wav_file.writeframes(pcm16.tobytes())
+
+            duration_seconds = float(len(y) / sr) if sr else float(len(y) / target_sr)
+        else:
+            temp_output = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+            temp_output_path = temp_output.name
+            temp_output.close()
+            try:
+                _ffmpeg_pcm_wav(temp_input_path, temp_output_path, target_sr)
+            except Exception as ff_exc:
+                raise ValueError(
+                    f"无法将音频转换为 WAV。librosa: {librosa_err!s}；{ff_exc!s}"
+                ) from ff_exc
+            try:
+                duration_seconds = _wav_duration_seconds(temp_output_path)
+            except OSError:
+                duration_seconds = 0.0
+
+        original_name = os.path.splitext(os.path.basename(getattr(audio_file, "name", "")))[0].strip()
         if not original_name:
             original_name = f"round_{round_id}"
 
@@ -147,6 +230,8 @@ def _convert_uploaded_audio_to_wav(audio_file, round_id: int):
             "channels": 1,
             "duration_seconds": duration_seconds,
         }
+    except ValueError:
+        raise
     except Exception as exc:
         raise ValueError(f"无法将音频转换为 WAV: {exc}") from exc
     finally:

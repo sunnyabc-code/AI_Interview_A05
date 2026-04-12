@@ -244,6 +244,12 @@ const selectedRound = computed(() =>
     selectedInterview.value?.rounds.find(round => round.id === selectedRoundId.value)
 )
 
+function nonEmptyStringList(items: string[] | null | undefined): string[] {
+    return (items ?? []).map((s) => String(s ?? '').trim()).filter((s) => s.length > 0)
+}
+
+const selectedRoundHighlightLines = computed(() => nonEmptyStringList(selectedRound.value?.highlights))
+
 const selectedRoundAudioSrc = computed(() => {
     const audioFileUrl = selectedRound.value?.audioFileUrl
     if (!audioFileUrl) {
@@ -2394,19 +2400,11 @@ watch(filteredInterviewHistory, visibleItems => {
 
                 <div class="detail-grid">
                     <section class="detail-card">
-                        <h2 class="title-with-icon">
-                            <span class="icon" aria-hidden="true">
-                                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path
-                                        d="M12 4L14.6 9.3L20.4 10.1L16.2 14.1L17.2 19.8L12 17L6.8 19.8L7.8 14.1L3.6 10.1L9.4 9.3L12 4Z"
-                                        stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
-                                </svg>
-                            </span>
-                            <span>亮点表现</span>
-                        </h2>
-                        <ul>
-                            <li v-for="item in selectedRound.highlights" :key="item">{{ item }}</li>
+                        <h2>亮点表现</h2>
+                        <ul v-if="selectedRoundHighlightLines.length">
+                            <li v-for="(item, idx) in selectedRoundHighlightLines" :key="`hl-${idx}-${item}`">{{ item }}</li>
                         </ul>
+                        <p v-else class="detail-list-empty">暂无</p>
                     </section>
 
                     <section class="detail-card">
@@ -3481,8 +3479,15 @@ watch(filteredInterviewHistory, visibleItems => {
 .detail-card ul {
     margin: 0;
     padding-left: 1.1rem;
-    color: var(--muted);
-    line-height: 1.58;
+    color: #475569;
+    line-height: 1.7;
+}
+
+.detail-list-empty {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.92rem;
+    line-height: 1.7;
 }
 
 .metric-list {

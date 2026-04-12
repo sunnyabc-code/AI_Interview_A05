@@ -124,6 +124,13 @@ class InterviewRound(models.Model):
         verbose_name="本链知识点/主题标签",
     )
 
+    # 项目经历链：主问随机选中的 user_projects.project_id，追问沿用同一条记录
+    user_project_id = models.BigIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="关联用户项目ID",
+    )
+
     start_time = models.DateTimeField(auto_now_add=True, verbose_name="开始时间")
     end_time = models.DateTimeField(null=True, blank=True, verbose_name="结束时间")
 

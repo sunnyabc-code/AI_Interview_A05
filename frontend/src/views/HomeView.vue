@@ -1,20 +1,67 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import ProfileView from './ProfileView.vue'
 import InterviewView from './InterviewView.vue'
 import EvaluationView from './EvaluationView.vue'
+import api from '@/utils/api'
 
 const router = useRouter()
 const route = useRoute()
 const user = ref(JSON.parse(localStorage.getItem('user') || '{}'))
 const activeMenu = ref(localStorage.getItem('activeMenu') || 'home')
 
+const homeLoading = ref(false)
+const profileSummary = ref<{ email?: string; phone?: string; created_at?: string }>({})
+const interviewStats = ref({ total: 0, completed: 0, inProgress: 0 })
+const projectCount = ref(0)
+const positionCount = ref(0)
+
+const loadHomeDashboard = async () => {
+  homeLoading.value = true
+  try {
+    const [profileRes, interviewsRes, projectsRes, positionsRes] = await Promise.all([
+      api.get('/api/users/profile/'),
+      api.get('/api/v1/interviews/'),
+      api.get('/api/user-projects/'),
+      api.get('/api/positions/'),
+    ])
+
+    if (profileRes.code === 200 && profileRes.data) {
+      profileSummary.value = profileRes.data
+      if (profileRes.data.username && !user.value?.username) {
+        user.value = { ...user.value, ...profileRes.data }
+      }
+    }
+
+    if (interviewsRes.code === 200 && Array.isArray(interviewsRes.data)) {
+      const list = interviewsRes.data as { status: string }[]
+      interviewStats.value = {
+        total: list.length,
+        completed: list.filter((i) => i.status === 'completed').length,
+        inProgress: list.filter((i) => i.status === 'in_progress').length,
+      }
+    }
+
+    if (projectsRes.code === 200 && Array.isArray(projectsRes.data)) {
+      projectCount.value = projectsRes.data.length
+    }
+
+    if (positionsRes.code === 200 && Array.isArray(positionsRes.data)) {
+      positionCount.value = positionsRes.data.length
+    }
+  } catch {
+    /* 首页统计失败时保留默认 0，不阻断导航 */
+  } finally {
+    homeLoading.value = false
+  }
+}
+
 const menuItems = [
   { id: 'home', label: '首页' },
   { id: 'interview', label: '面试' },
   { id: 'evaluation', label: '评估' },
-  { id: 'history', label: '历史记录' },
+  /* { id: 'history', label: '历史记录' }, */
   { id: 'profile', label: '个人中心' }
 ]
 
@@ -58,11 +105,23 @@ onMounted(() => {
   const menuFromQuery = typeof route.query.menu === 'string' ? route.query.menu : ''
   if (menuFromQuery) {
     setActiveMenu(menuFromQuery)
+    if (menuFromQuery === 'home') {
+      loadHomeDashboard()
+    }
     return
   }
 
   const menuFromStorage = localStorage.getItem('activeMenu') || 'home'
   setActiveMenu(menuFromStorage, true)
+  if (menuFromStorage === 'home') {
+    loadHomeDashboard()
+  }
+})
+
+watch(activeMenu, (id) => {
+  if (id === 'home') {
+    loadHomeDashboard()
+  }
 })
 </script>
 
@@ -136,11 +195,75 @@ onMounted(() => {
     </header>
 
     <main class="main-content">
-      <div v-if="activeMenu === 'home'" class="content-area">
+      <div v-if="activeMenu === 'home'" class="content-area home-dashboard">
         <div class="home-hero">
-          <p class="home-eyebrow">Welcome</p>
-          <h2>欢迎来到AI面试平台</h2>
-          <p>请选择上方菜单开始您的面试之旅，系统会为你统一管理面试流程、评估结果与历史记录。</p>
+          <p class="home-eyebrow">Dashboard</p>
+          <h2>欢迎回来，{{ user.username || '候选人' }}</h2>
+          <p class="home-lead">
+            AI 面试平台支持多岗位模拟面试、语音与文本答题、轮次分析与学习推荐。从下方入口开始练习，或在个人中心维护简历与项目经历。
+          </p>
+        </div>
+
+        <p v-if="homeLoading" class="home-loading">正在加载概览…</p>
+
+        <div class="home-grid">
+          <section class="home-card home-card--accent" aria-labelledby="home-platform-title">
+            <h3 id="home-platform-title" class="home-card-title">平台能力</h3>
+            <ul class="home-feature-list">
+              <li><strong>多题型</strong>：技术、项目经历、场景题可按难度编排，支持追问链。</li>
+              <li><strong>双模式</strong>：文本作答与实时语音面试，满足不同练习习惯。</li>
+              <li><strong>评估与推荐</strong>：轮次打分、知识点反馈与表达分析，便于查漏补缺。</li>
+              <li><strong>岗位知识库</strong>：按所选岗位匹配题库与生成策略，更贴近真实面试。</li>
+            </ul>
+          </section>
+
+          <section class="home-card" aria-labelledby="home-personal-title">
+            <h3 id="home-personal-title" class="home-card-title">我的概览</h3>
+            <dl class="home-stat-grid">
+              <div class="home-stat">
+                <dt>面试记录</dt>
+                <dd>{{ interviewStats.total }}</dd>
+              </div>
+              <div class="home-stat">
+                <dt>已完成</dt>
+                <dd>{{ interviewStats.completed }}</dd>
+              </div>
+              <div class="home-stat">
+                <dt>进行中</dt>
+                <dd>{{ interviewStats.inProgress }}</dd>
+              </div>
+              <div class="home-stat">
+                <dt>项目经历</dt>
+                <dd>{{ projectCount }}</dd>
+              </div>
+              <div class="home-stat home-stat--wide">
+                <dt>开放岗位</dt>
+                <dd>{{ positionCount }} 个可选方向</dd>
+              </div>
+            </dl>
+            <div class="home-meta" v-if="profileSummary.email || profileSummary.phone">
+              <p v-if="profileSummary.email"><span class="home-meta-label">邮箱</span>{{ profileSummary.email }}</p>
+              <p v-if="profileSummary.phone"><span class="home-meta-label">手机</span>{{ profileSummary.phone }}</p>
+            </div>
+          </section>
+
+          <section class="home-card home-card--actions" aria-labelledby="home-actions-title">
+            <h3 id="home-actions-title" class="home-card-title">快捷入口</h3>
+            <div class="home-action-row">
+              <button type="button" class="home-action-btn primary" @click="handleMenuClick('interview')">
+                去面试
+              </button>
+              <button type="button" class="home-action-btn" @click="handleMenuClick('evaluation')">
+                查看评估
+              </button>
+              <button type="button" class="home-action-btn" @click="handleMenuClick('profile')">
+                个人中心
+              </button>
+            </div>
+            <p class="home-tip">
+              创建面试时若勾选<strong>项目经历题</strong>，须先在个人中心为<strong>所选岗位</strong>填写至少一条项目经历，否则无法创建。
+            </p>
+          </section>
         </div>
       </div>
 
@@ -152,10 +275,10 @@ onMounted(() => {
         <EvaluationView />
       </div>
 
-      <div v-if="activeMenu === 'history'" class="content-area">
+      <!-- <div v-if="activeMenu === 'history'" class="content-area">
         <h2>历史记录</h2>
         <p>历史记录功能正在开发中...</p>
-      </div>
+      </div> -->
 
       <div v-if="activeMenu === 'profile'" class="content-area">
         <ProfileView />
@@ -328,8 +451,169 @@ onMounted(() => {
   font-size: 0.96rem;
 }
 
+.content-area.home-dashboard {
+  min-height: 480px;
+}
+
+.home-lead {
+  max-width: 820px;
+  line-height: 1.65;
+  margin-top: 0.5rem;
+}
+
+.home-loading {
+  font-size: 0.88rem;
+  color: var(--muted);
+  margin: 0.25rem 0 0.75rem;
+}
+
+.home-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.home-card {
+  background: var(--surface-soft);
+  border: 1px solid var(--line-soft);
+  border-radius: 14px;
+  padding: 1rem 1.1rem;
+  text-align: left;
+}
+
+.home-card--accent {
+  background: linear-gradient(145deg, #f4faf7 0%, #eef6f2 100%);
+  border-color: #d5e8df;
+}
+
+.home-card--actions {
+  grid-column: 1 / -1;
+}
+
+.home-card-title {
+  margin: 0 0 0.75rem;
+  font-size: 1.02rem;
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+
+.home-feature-list {
+  margin: 0;
+  padding-left: 1.15rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.65;
+}
+
+.home-feature-list li {
+  margin-bottom: 0.45rem;
+}
+
+.home-feature-list strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.home-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+  margin: 0;
+}
+
+.home-stat {
+  margin: 0;
+  padding: 0.65rem 0.75rem;
+  background: #fff;
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+}
+
+.home-stat--wide {
+  grid-column: 1 / -1;
+}
+
+.home-stat dt {
+  margin: 0;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.home-stat dd {
+  margin: 0.2rem 0 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: -0.02em;
+}
+
+.home-meta {
+  margin-top: 0.85rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--line-soft);
+  font-size: 0.86rem;
+  color: var(--muted);
+}
+
+.home-meta p {
+  margin: 0.25rem 0;
+}
+
+.home-meta-label {
+  display: inline-block;
+  min-width: 2.5rem;
+  color: var(--text);
+  font-weight: 600;
+  margin-right: 0.35rem;
+}
+
+.home-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.home-action-btn {
+  padding: 0.55rem 1rem;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--text);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+}
+
+.home-action-btn:hover {
+  background: #f4faf7;
+  border-color: #c5d9d0;
+}
+
+.home-action-btn.primary {
+  background: linear-gradient(135deg, var(--accent-2) 0%, var(--accent) 100%);
+  color: #fff;
+  border: none;
+  box-shadow: 0 8px 18px rgba(47, 93, 86, 0.22);
+}
+
+.home-action-btn.primary:hover {
+  transform: translateY(-1px);
+}
+
+.home-tip {
+  margin: 0.85rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
 .home-hero {
-  max-width: 760px;
+  max-width: 920px;
 }
 
 .home-eyebrow {
@@ -390,6 +674,18 @@ onMounted(() => {
   .content-area {
     padding: 0.8rem;
     min-height: 320px;
+  }
+
+  .home-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .home-stat-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .home-stat--wide {
+    grid-column: auto;
   }
 
   .hero-copy h2 {

@@ -9,6 +9,8 @@ const {
   isSubmitting,
   isWaitingForQuestion,
   isClosingInterview,
+  showEndDecision,
+  isWaitingForEvaluationResult,
   isInterviewEnded,
   isPaused,
   countdownSeconds,
@@ -25,7 +27,9 @@ const {
   stopPolling,
   addWelcomeMessage,
   loadHistoryMessages,
-  statusText
+  statusText,
+  returnToInterviewList,
+  waitForEvaluationResult
 } = useInterviewSession()
 
 const loading = ref(false)
@@ -256,13 +260,34 @@ onUnmounted(() => {
   <div class="interview-session">
     <Teleport to="body">
       <div
-        v-if="isClosingInterview"
+        v-if="isClosingInterview || showEndDecision"
         class="session-exit-overlay"
         aria-live="polite"
       >
-        <div class="session-exit-inner">
+        <div v-if="!showEndDecision" class="session-exit-inner">
           <div class="session-spinner" />
-          <p class="session-exit-text">正在结束面试，请稍候…</p>
+          <p class="session-exit-title">面试已结束，分析报告正在生成</p>
+        </div>
+
+        <div v-else class="session-exit-card">
+          <div class="session-exit-badge">已完成</div>
+          <h2>面试已结束，分析报告正在生成</h2>
+          <p>
+            您可以先返回面试列表，稍后在评估页面查看完整结果；也可以等待结果生成后，系统会自动跳转到评估页面。
+          </p>
+          <div class="session-exit-actions">
+            <button class="exit-list-btn" @click="returnToInterviewList">
+              返回面试列表
+            </button>
+            <button
+              class="exit-wait-btn"
+              :disabled="isWaitingForEvaluationResult"
+              @click="waitForEvaluationResult"
+            >
+              {{ isWaitingForEvaluationResult ? '正在等待结果...' : '等待评估结果' }}
+            </button>
+          </div>
+          <p class="session-exit-footnote">评估结果生成后，会自动打开评估页面。</p>
         </div>
       </div>
     </Teleport>
@@ -334,7 +359,7 @@ onUnmounted(() => {
               </div>
               <div class="status-item">
                 <span class="status-label">问题状态</span>
-                <strong>{{ isWaitingForQuestion ? '生成中' : '已就绪' }}</strong>
+                <strong>{{ isClosingInterview ? '结束中' : (isWaitingForQuestion ? '生成中' : '已就绪') }}</strong>
               </div>
             </div>
           </section>
@@ -355,18 +380,18 @@ onUnmounted(() => {
                 <button class="pause-btn" @click="pauseInterview">
                   暂停面试
                 </button>
-                <button class="end-btn" @click="endInterview">
+                <!-- <button class="end-btn" @click="endInterview">
                   结束面试
-                </button>
+                </button> -->
               </div>
 
               <div v-else-if="interview && interview.status === 'paused'" class="action-group">
                 <button class="resume-btn" @click="resumeInterview">
                   继续面试
                 </button>
-                <button class="end-btn" @click="endInterview">
+                <!-- <button class="end-btn" @click="endInterview">
                   结束面试
-                </button>
+                </button> -->
               </div>
 
               <div v-else-if="interview && interview.status === 'completed'" class="action-group">
@@ -386,6 +411,23 @@ onUnmounted(() => {
       </aside>
       
       <main class="session-main">
+        <div
+          v-if="interview && interview.status === 'completed'"
+          class="completed-banner"
+          role="status"
+          aria-live="polite"
+        >
+          <span class="completed-banner-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/>
+              <path d="M8 12.2L10.8 15L16 9.8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
+          <div class="completed-banner-text">
+            <strong>本场面试已完成</strong>
+            <span>您可以返回列表，或在评估页查看综合结果。</span>
+          </div>
+        </div>
         <div class="chat-container">
           <div class="chat-messages">
             <div 
@@ -432,13 +474,13 @@ onUnmounted(() => {
               @keydown.enter.prevent="handleSendMessage"
             />
             <div class="input-buttons">
-              <button
+              <!-- <button
                 class="record-btn"
                 @click="toggleRecording"
                 :disabled="isSubmitting || isWaitingForQuestion || isClosingInterview || isInterviewEnded || isPaused || isUploadingAudio"
               >
                 {{ isRecording ? '停止录音' : '开始录音' }}
-              </button>
+              </button> -->
               <button 
                 class="send-btn" 
                 @click="handleSendMessage"
@@ -869,6 +911,49 @@ onUnmounted(() => {
   box-shadow: 0 14px 30px rgba(31, 41, 38, 0.08);
 }
 
+.completed-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.68rem;
+  margin: 0.78rem 0.88rem 0;
+  padding: 0.72rem 0.82rem;
+  border: 1px solid #bcd9d1;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #eef7f4 0%, #f8fcfb 100%);
+  color: #244a43;
+  box-shadow: 0 8px 18px rgba(47, 93, 86, 0.1);
+}
+
+.completed-banner-icon {
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.completed-banner-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.completed-banner-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  line-height: 1.45;
+}
+
+.completed-banner-text strong {
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.completed-banner-text span {
+  font-size: 0.82rem;
+  color: #3f615b;
+}
+
 .chat-container {
   flex: 1;
   display: flex;
@@ -1156,6 +1241,100 @@ onUnmounted(() => {
   padding: 1.6rem;
 }
 
+.session-exit-card {
+  width: min(560px, calc(100vw - 32px));
+  background: #ffffff;
+  border: 1px solid #d7e5df;
+  border-radius: 18px;
+  box-shadow: 0 24px 60px rgba(31, 41, 38, 0.18);
+  padding: 1.5rem 1.4rem 1.25rem;
+  text-align: left;
+}
+
+.session-exit-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.28rem 0.6rem;
+  border-radius: 999px;
+  background: #e7f4ef;
+  color: #235047;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 0.9rem;
+}
+
+.session-exit-card h2 {
+  margin: 0 0 0.65rem;
+  font-size: 1.22rem;
+  color: #1f2926;
+  line-height: 1.35;
+}
+
+.session-exit-card p {
+  margin: 0;
+  color: #4a5d58;
+  line-height: 1.7;
+}
+
+.session-exit-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.session-exit-actions button {
+  flex: 1;
+  border: none;
+  border-radius: 12px;
+  padding: 0.82rem 1rem;
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+.exit-list-btn {
+  background: #edf2ef;
+  color: #324742;
+}
+
+.exit-list-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(31, 41, 38, 0.09);
+}
+
+.exit-wait-btn {
+  background: linear-gradient(135deg, #3f655f 0%, #2f5d56 100%);
+  color: #ffffff;
+  box-shadow: 0 10px 22px rgba(47, 93, 86, 0.2);
+}
+
+.exit-wait-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(47, 93, 86, 0.24);
+}
+
+.exit-wait-btn:disabled {
+  opacity: 0.72;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.session-exit-footnote {
+  margin-top: 0.85rem !important;
+  font-size: 0.82rem;
+  color: #6b7d78 !important;
+}
+
+.session-exit-title {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #27433d;
+}
+
 .session-spinner {
   width: 42px;
   height: 42px;
@@ -1252,6 +1431,20 @@ onUnmounted(() => {
   .chat-messages {
     padding: 0.8rem;
   }
+
+  .completed-banner {
+    margin: 0.65rem 0.72rem 0;
+    padding: 0.62rem 0.7rem;
+    border-radius: 10px;
+  }
+
+  .completed-banner-text strong {
+    font-size: 0.88rem;
+  }
+
+  .completed-banner-text span {
+    font-size: 0.78rem;
+  }
   
   .input-area {
     padding: 0.72rem;
@@ -1276,6 +1469,20 @@ onUnmounted(() => {
 
   .audio-status {
     padding: 0 0.72rem 0.72rem;
+  }
+
+  .session-exit-card {
+    width: min(100vw - 28px, 560px);
+    padding: 1.25rem 1rem 1rem;
+    border-radius: 16px;
+  }
+
+  .session-exit-card h2 {
+    font-size: 1.05rem;
+  }
+
+  .session-exit-actions {
+    flex-direction: column;
   }
 }
 </style>
