@@ -32,9 +32,11 @@ const goToPathway = () => {
                 <div class="card-top">
                     <span class="icon-wrap" aria-hidden="true">
                         <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M6 7.2C6 6.54 6.54 6 7.2 6H16.8C17.46 6 18 6.54 18 7.2V16.8C18 17.46 17.46 18 16.8 18H7.2C6.54 18 6 17.46 6 16.8V7.2Z" stroke="currentColor" stroke-width="1.5"/>
-                            <path d="M8.6 10H15.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                            <path d="M8.6 13H13.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            <path
+                                d="M6 7.2C6 6.54 6.54 6 7.2 6H16.8C17.46 6 18 6.54 18 7.2V16.8C18 17.46 17.46 18 16.8 18H7.2C6.54 18 6 17.46 6 16.8V7.2Z"
+                                stroke="currentColor" stroke-width="1.5" />
+                            <path d="M8.6 10H15.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                            <path d="M8.6 13H13.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
                         </svg>
                     </span>
                     <span class="tag">Review</span>
@@ -48,10 +50,10 @@ const goToPathway = () => {
                 <div class="card-top">
                     <span class="icon-wrap" aria-hidden="true">
                         <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M6.5 17.5V12.8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                            <path d="M12 17.5V9.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                            <path d="M17.5 17.5V6.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                            <path d="M5.2 17.5H18.8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            <path d="M6.5 17.5V12.8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                            <path d="M12 17.5V9.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                            <path d="M17.5 17.5V6.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                            <path d="M5.2 17.5H18.8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
                         </svg>
                     </span>
                     <span class="tag">Overview</span>
@@ -65,9 +67,10 @@ const goToPathway = () => {
                 <div class="card-top">
                     <span class="icon-wrap" aria-hidden="true">
                         <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M7 17L17 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                            <path d="M9 7H17V15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                            <path d="M6 18H18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            <path d="M7 17L17 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                            <path d="M9 7H17V15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
+                                stroke-linejoin="round" />
+                            <path d="M6 18H18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
                         </svg>
                     </span>
                     <span class="tag">Pathway</span>

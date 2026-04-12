@@ -198,7 +198,7 @@ watch(activeMenu, (id) => {
       <div v-if="activeMenu === 'home'" class="content-area home-dashboard">
         <div class="home-hero">
           <p class="home-eyebrow">Dashboard</p>
-          <h2>欢迎回来，{{ user.username || '候选人' }}</h2>
+          <h1>欢迎回来，{{ user.username || '候选人' }}</h1>
           <p class="home-lead">
             AI 面试平台支持多岗位模拟面试、语音与文本答题、轮次分析与学习推荐。从下方入口开始练习，或在个人中心维护简历与项目经历。
           </p>
@@ -456,7 +456,7 @@ watch(activeMenu, (id) => {
 }
 
 .home-lead {
-  max-width: 820px;
+  max-width: 100%;
   line-height: 1.65;
   margin-top: 0.5rem;
 }
