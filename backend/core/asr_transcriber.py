@@ -5,7 +5,7 @@ import threading
 import time
 import wave
 from importlib import import_module
-from typing import Optional, Tuple
+from typing import Any, Optional, Tuple
 
 from django.conf import settings
 from django.core.files.storage import default_storage
@@ -18,6 +18,9 @@ class ASRTranscriptionError(Exception):
 _FW_MODEL = None
 _FW_MODEL_LOCK = threading.Lock()
 _FW_MODEL_SIGNATURE = None
+_SV_MODEL = None
+_SV_MODEL_LOCK = threading.Lock()
+_SV_MODEL_SIGNATURE = None
 _OPENCC_CONVERTER = None
 _OPENCC_LOCK = threading.Lock()
 
@@ -237,6 +240,113 @@ def _transcribe_with_whisper(file_path: str, language: str) -> Tuple[str, Option
     return text, confidence
 
 
+def _extract_text_from_sensevoice_output(data: Any) -> str:
+    if data is None:
+        return ""
+
+    if isinstance(data, str):
+        return data.strip()
+
+    if isinstance(data, dict):
+        for key in ("text", "asr_text", "sentence", "result"):
+            value = data.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+
+        for key in ("data", "output", "results", "value"):
+            nested = data.get(key)
+            text = _extract_text_from_sensevoice_output(nested)
+            if text:
+                return text
+
+        for value in data.values():
+            text = _extract_text_from_sensevoice_output(value)
+            if text:
+                return text
+
+        return ""
+
+    if isinstance(data, (list, tuple)):
+        parts = []
+        for item in data:
+            text = _extract_text_from_sensevoice_output(item)
+            if text:
+                parts.append(text)
+        if not parts:
+            return ""
+        merged = []
+        for part in parts:
+            if not merged or merged[-1] != part:
+                merged.append(part)
+        return " ".join(merged).strip()
+
+    return ""
+
+
+def _get_sensevoice_model():
+    global _SV_MODEL, _SV_MODEL_SIGNATURE
+
+    model_name = str(getattr(settings, "SENSEVOICE_MODEL", "iic/SenseVoiceSmall"))
+    device = str(getattr(settings, "SENSEVOICE_DEVICE", "cpu"))
+    signature = (model_name, device)
+
+    if _SV_MODEL is not None and _SV_MODEL_SIGNATURE == signature:
+        return _SV_MODEL
+
+    with _SV_MODEL_LOCK:
+        if _SV_MODEL is None or _SV_MODEL_SIGNATURE != signature:
+            module = import_module("funasr")
+            AutoModel = getattr(module, "AutoModel")
+            _SV_MODEL = AutoModel(
+                model=model_name,
+                device=device,
+                trust_remote_code=True,
+                disable_update=True,
+            )
+            _SV_MODEL_SIGNATURE = signature
+    return _SV_MODEL
+
+
+def _transcribe_with_sensevoice(file_path: str, language: str) -> Tuple[str, Optional[float]]:
+    model = _get_sensevoice_model()
+    sv_language = str(getattr(settings, "SENSEVOICE_LANGUAGE", language or "zh"))
+    use_itn = bool(getattr(settings, "SENSEVOICE_USE_ITN", True))
+
+    try:
+        result = model.generate(
+            input=file_path,
+            language=sv_language,
+            use_itn=use_itn,
+        )
+    except TypeError:
+        # 兼容部分版本不支持 language/use_itn 参数。
+        result = model.generate(input=file_path)
+
+    text = _extract_text_from_sensevoice_output(result)
+    text = _normalize_chinese_text(text)
+    return text, None
+
+
+def _transcribe_with_local_whisper(file_path: str, language: str) -> Tuple[str, Optional[float]]:
+    try:
+        return _transcribe_with_faster_whisper(file_path, language)
+    except ModuleNotFoundError:
+        pass
+    except Exception as exc:
+        raise ASRTranscriptionError(f"faster-whisper 转写失败: {exc}") from exc
+
+    try:
+        return _transcribe_with_whisper(file_path, language)
+    except ModuleNotFoundError:
+        pass
+    except Exception as exc:
+        raise ASRTranscriptionError(f"whisper 转写失败: {exc}") from exc
+
+    raise ASRTranscriptionError(
+        "未安装可用的本地转写库，请安装 faster-whisper 或 openai-whisper"
+    )
+
+
 def transcribe_audio_file(file_key: str, language: str = "zh") -> Tuple[str, Optional[float]]:
     if not file_key:
         raise ASRTranscriptionError("音频文件标识为空")
@@ -260,19 +370,30 @@ def transcribe_audio_file(file_key: str, language: str = "zh") -> Tuple[str, Opt
         processed_path = _preprocess_audio_for_asr(tmp_path)
         asr_input_path = processed_path or tmp_path
 
-        try:
-            return _transcribe_with_faster_whisper(asr_input_path, language)
-        except ModuleNotFoundError:
-            pass
-        except Exception as exc:
-            raise ASRTranscriptionError(f"faster-whisper 转写失败: {exc}") from exc
+        provider = str(getattr(settings, "ASR_PROVIDER", "local")).strip().lower()
+        fallback_on_error = bool(getattr(settings, "ASR_FALLBACK_ON_ERROR", True))
 
-        try:
-            return _transcribe_with_whisper(asr_input_path, language)
-        except ModuleNotFoundError:
-            pass
-        except Exception as exc:
-            raise ASRTranscriptionError(f"whisper 转写失败: {exc}") from exc
+        if provider == "sensevoice":
+            try:
+                return _transcribe_with_sensevoice(asr_input_path, language)
+            except ModuleNotFoundError:
+                if not fallback_on_error:
+                    raise ASRTranscriptionError("未安装 funasr，无法使用 SenseVoice 转写")
+            except Exception as exc:
+                if not fallback_on_error:
+                    raise ASRTranscriptionError(f"SenseVoice 转写失败: {exc}") from exc
+            return _transcribe_with_local_whisper(asr_input_path, language)
+
+        if provider == "hybrid":
+            try:
+                return _transcribe_with_sensevoice(asr_input_path, language)
+            except ModuleNotFoundError:
+                pass
+            except Exception:
+                pass
+            return _transcribe_with_local_whisper(asr_input_path, language)
+
+        return _transcribe_with_local_whisper(asr_input_path, language)
     finally:
         try:
             if os.path.exists(tmp_path):
@@ -285,6 +406,4 @@ def transcribe_audio_file(file_key: str, language: str = "zh") -> Tuple[str, Opt
         except OSError:
             pass
 
-    raise ASRTranscriptionError(
-        "未安装可用的本地转写库，请安装 faster-whisper 或 openai-whisper"
-    )
+    raise ASRTranscriptionError("音频转写失败")

@@ -273,11 +273,27 @@ CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TIMEZONE = TIME_ZONE
 
 # 本地 ASR 配置
+ASR_PROVIDER = os.getenv("ASR_PROVIDER", "local").strip().lower()
+ASR_FALLBACK_ON_ERROR = os.getenv("ASR_FALLBACK_ON_ERROR", "true").lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
 ASR_LANGUAGE = os.getenv("ASR_LANGUAGE", "zh")
 ASR_MODEL_SIZE = os.getenv("ASR_MODEL_SIZE", "small")
 ASR_BEAM_SIZE = int(os.getenv("ASR_BEAM_SIZE", "5"))
 ASR_DEVICE = os.getenv("ASR_DEVICE", "cpu")
 ASR_COMPUTE_TYPE = os.getenv("ASR_COMPUTE_TYPE", "int8")
+SENSEVOICE_MODEL = os.getenv("SENSEVOICE_MODEL", "iic/SenseVoiceSmall")
+SENSEVOICE_DEVICE = os.getenv("SENSEVOICE_DEVICE", "cpu")
+SENSEVOICE_LANGUAGE = os.getenv("SENSEVOICE_LANGUAGE", "zh")
+SENSEVOICE_USE_ITN = os.getenv("SENSEVOICE_USE_ITN", "true").lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
 ASR_FORCE_SIMPLIFIED = os.getenv("ASR_FORCE_SIMPLIFIED", "true").lower() in {
     "1",
     "true",
