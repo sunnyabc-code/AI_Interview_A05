@@ -191,11 +191,7 @@ function scoreText(v: number | null | undefined) {
   position: relative;
   overflow-x: hidden;
   color: var(--text);
-  background:
-    radial-gradient(circle at 12% 6%, rgba(75, 104, 92, 0.08), transparent 32%),
-    radial-gradient(circle at 88% 10%, rgba(80, 104, 96, 0.06), transparent 34%),
-    radial-gradient(circle at top right, rgba(47, 93, 86, 0.05), transparent 42%),
-    var(--bg);
+  background: linear-gradient(180deg, #e8f2ec 0%, #f3f8f5 100%);
 }
 
 .bg-shape {

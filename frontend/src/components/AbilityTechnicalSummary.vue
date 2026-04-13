@@ -531,13 +531,14 @@ onBeforeUnmount(() => {
 <style scoped>
 .tech-overview {
   margin-bottom: 0.95rem;
-  border: 1px solid #dbeafe;
+  border: 1px solid #1a332f;
   border-radius: 14px;
   padding: 0.95rem;
   background:
-    radial-gradient(circle at 6% 12%, rgba(56, 189, 248, 0.18), transparent 42%),
-    radial-gradient(circle at 94% 18%, rgba(16, 185, 129, 0.14), transparent 38%),
-    linear-gradient(145deg, rgba(255, 255, 255, 0.94), rgba(240, 249, 255, 0.9));
+    radial-gradient(circle at 6% 12%, rgba(255, 255, 255, 0.08), transparent 42%),
+    radial-gradient(circle at 94% 18%, rgba(204, 227, 219, 0.12), transparent 38%),
+    linear-gradient(145deg, #2f5d56, #234741);
+  box-shadow: 0 6px 20px rgba(47, 93, 86, 0.2);
 }
 
 .section-head {
@@ -549,23 +550,30 @@ onBeforeUnmount(() => {
 
 .section-head h2 {
   margin: 0;
-  color: #0f172a;
+  color: #ffffff;
   font-size: 1.06rem;
 }
 
 .section-head p {
   margin: 0.22rem 0 0;
-  color: #475569;
+  color: rgba(255, 255, 255, 0.8);
   font-size: 0.84rem;
 }
 
 .refresh-btn {
-  border: 1px solid #93c5fd;
-  background: #ffffff;
-  color: #1d4ed8;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  color: #ffffff;
   border-radius: 9px;
   padding: 0.45rem 0.75rem;
   cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.refresh-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.25);
+  color: white;
 }
 
 .refresh-btn:disabled {
@@ -575,9 +583,9 @@ onBeforeUnmount(() => {
 
 .error-banner {
   margin-top: 0.65rem;
-  border: 1px solid #fecaca;
-  background: #fef2f2;
-  color: #991b1b;
+  border: 1px solid #ffcdd2;
+  background: #fff5f5;
+  color: #d32f2f;
   border-radius: 8px;
   padding: 0.62rem 0.78rem;
 }
@@ -590,11 +598,17 @@ onBeforeUnmount(() => {
 }
 
 .summary-card {
-  border: 1px solid rgba(148, 163, 184, 0.3);
+  border: 1px solid #cce3db;
   border-radius: 12px;
   padding: 0.72rem;
-  background: rgba(255, 255, 255, 0.86);
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 4px 15px rgba(47, 93, 86, 0.05);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.summary-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(47, 93, 86, 0.08);
 }
 
 .card-top {
@@ -606,15 +620,15 @@ onBeforeUnmount(() => {
 
 .card-top h3 {
   margin: 0;
-  color: #0f172a;
+  color: #1f2926;
   font-size: 0.98rem;
 }
 
 .count-pill {
   border-radius: 999px;
-  border: 1px solid #cbd5e1;
-  background: #f8fafc;
-  color: #334155;
+  border: 1px solid #cce3db;
+  background: rgba(235, 248, 242, 0.6);
+  color: #66756f;
   padding: 0.12rem 0.52rem;
   font-size: 0.74rem;
 }
@@ -634,16 +648,16 @@ onBeforeUnmount(() => {
   display: flex;
   justify-content: space-between;
   font-size: 0.79rem;
-  color: #334155;
+  color: #66756f;
 }
 
 .metric-head strong {
-  color: #0f172a;
+  color: #1f2926;
 }
 
 .metric-track {
   height: 7px;
-  background: #e2e8f0;
+  background: #e6f2eb;
   border-radius: 999px;
   overflow: hidden;
 }
@@ -657,18 +671,25 @@ onBeforeUnmount(() => {
 .detail-btn {
   margin-top: 0.62rem;
   width: 100%;
-  border: 1px solid #bfdbfe;
-  background: #eff6ff;
-  color: #1d4ed8;
+  border: 1px solid #cce3db;
+  background: rgba(235, 248, 242, 0.6);
+  color: #2f5d56;
   border-radius: 8px;
   padding: 0.36rem;
   cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.detail-btn:hover {
+  background: #2f5d56;
+  color: white;
 }
 
 .detail-mask {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.42);
+  background: rgba(31, 41, 38, 0.5);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -681,8 +702,9 @@ onBeforeUnmount(() => {
   max-height: calc(100vh - 2rem);
   overflow: auto;
   border-radius: 14px;
-  border: 1px solid #dbeafe;
-  background: #ffffff;
+  border: 1px solid #cce3db;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 12px 30px rgba(47, 93, 86, 0.15);
   padding: 0.92rem;
 }
 
@@ -695,46 +717,52 @@ onBeforeUnmount(() => {
 
 .detail-top h3 {
   margin: 0;
-  color: #0f172a;
+  color: #1f2926;
 }
 
 .detail-top p {
   margin: 0.22rem 0 0;
-  color: #64748b;
+  color: #66756f;
   font-size: 0.84rem;
 }
 
 .close-btn {
-  border: 1px solid #cbd5e1;
-  background: #ffffff;
-  color: #334155;
+  border: 1px solid #cce3db;
+  background: rgba(255, 255, 255, 0.8);
+  color: #2f5d56;
   border-radius: 8px;
   padding: 0.38rem 0.72rem;
   cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.close-btn:hover {
+  background: #2f5d56;
+  color: white;
 }
 
 .detail-empty {
   margin-top: 0.8rem;
-  border: 1px dashed #cbd5e1;
+  border: 1px dashed #cce3db;
   border-radius: 10px;
   text-align: center;
-  color: #64748b;
+  color: #66756f;
   padding: 1rem;
 }
 
 .trend-chart-wrap {
   margin-top: 0.75rem;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #cce3db;
   border-radius: 12px;
   padding: 0.65rem;
-  background: #fcfdff;
+  background: rgba(235, 248, 242, 0.4);
 }
 
 .chart-meta {
   display: flex;
   justify-content: space-between;
   gap: 0.8rem;
-  color: #475569;
+  color: #66756f;
   font-size: 0.8rem;
   margin-bottom: 0.42rem;
 }

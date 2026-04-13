@@ -99,10 +99,7 @@ const goToPathway = () => {
     overflow: hidden;
     padding: 34px clamp(18px, 3.2vw, 42px) 40px;
     color: var(--text);
-    background:
-        radial-gradient(circle at 12% 8%, rgba(75, 104, 92, 0.09), transparent 32%),
-        radial-gradient(circle at 88% 12%, rgba(80, 104, 96, 0.06), transparent 34%),
-        var(--bg);
+    background: transparent;
 }
 
 .bg-shape {

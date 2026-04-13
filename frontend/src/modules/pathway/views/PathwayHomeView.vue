@@ -286,29 +286,35 @@ onBeforeUnmount(() => {
 .pathway-home {
   padding: 1rem;
   background:
-    radial-gradient(circle at 8% 10%, #fff7ed 0, transparent 24%),
-    radial-gradient(circle at 90% 0%, #fef9c3 0, transparent 28%),
-    #fffdfa;
+    radial-gradient(circle at 8% 10%, rgba(204, 227, 219, 0.4) 0, transparent 24%),
+    radial-gradient(circle at 90% 0%, rgba(235, 248, 242, 0.8) 0, transparent 28%),
+    #ffffff;
 }
 
 .back-btn {
-  border: 1px solid #cbd5e1;
-  background: #fff;
-  color: #334155;
+  border: 1px solid #cce3db;
+  background: rgba(255, 255, 255, 0.8);
+  color: #2f5d56;
   border-radius: 8px;
   padding: 0.3rem 0.65rem;
   cursor: pointer;
   margin-bottom: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+.back-btn:hover {
+  background: #2f5d56;
+  color: white;
 }
 
 h1 {
   margin: 0;
-  color: #0f172a;
+  color: #1f2926;
 }
 
 header p {
   margin: 0.3rem 0 0;
-  color: #64748b;
+  color: #66756f;
 }
 
 .actions {
@@ -318,28 +324,39 @@ header p {
 }
 
 button {
-  border: 1px solid #93c5fd;
-  background: #fff;
-  color: #1d4ed8;
+  border: 1px solid #cce3db;
+  background: rgba(255, 255, 255, 0.8);
+  color: #2f5d56;
   border-radius: 8px;
   padding: 0.4rem 0.72rem;
   cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+button:hover:not(:disabled) {
+  background: #2f5d56;
+  color: white;
+}
+
+button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
 }
 
 .error {
   margin-top: 0.7rem;
-  border: 1px solid #fecaca;
-  background: #fef2f2;
-  color: #991b1b;
+  border: 1px solid #ffcdd2;
+  background: #fff5f5;
+  color: #d32f2f;
   border-radius: 8px;
   padding: 0.6rem;
 }
 
 .generating-banner {
   margin-top: 0.7rem;
-  border: 1px solid #93c5fd;
-  background: #eff6ff;
-  color: #1e3a8a;
+  border: 1px solid #cce3db;
+  background: rgba(235, 248, 242, 0.4);
+  color: #2f5d56;
   border-radius: 10px;
   padding: 0.56rem 0.7rem;
 }
@@ -355,7 +372,7 @@ button {
   margin-top: 0.42rem;
   height: 8px;
   border-radius: 999px;
-  background: #dbeafe;
+  background: #e6f2eb;
   overflow: hidden;
 }
 
@@ -363,32 +380,36 @@ button {
   display: block;
   height: 100%;
   border-radius: 999px;
-  background: linear-gradient(90deg, #2563eb 0%, #38bdf8 100%);
+  background: linear-gradient(90deg, #2f5d56 0%, #479e91 100%);
 }
 
 .progress-tip {
   margin: 0.4rem 0 0;
   font-size: 0.75rem;
-  color: #1e40af;
+  color: #234741;
 }
 
-.profile-card,
 .plan-card,
 .empty {
   margin-top: 0.8rem;
-  border: 1px solid #dbeafe;
+  border: 1px solid #cce3db;
   border-radius: 12px;
-  background: #f8fbff;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(10px);
   padding: 0.8rem;
 }
 
 .profile-card {
   margin-top: 0.9rem;
+  border-radius: 12px;
+  padding: 0.8rem;
   background:
-    radial-gradient(circle at 18% -10%, #fde68a 0, transparent 45%),
-    radial-gradient(circle at 100% 0%, #fde68a 0, transparent 30%),
-    linear-gradient(180deg, #fffdf6 0%, #fff9eb 100%);
-  border-color: #f5deb3;
+    radial-gradient(circle at 18% -10%, rgba(255, 255, 255, 0.08) 0, transparent 45%),
+    radial-gradient(circle at 100% 0%, rgba(204, 227, 219, 0.12) 0, transparent 30%),
+    linear-gradient(135deg, #2f5d56, #1f423d);
+  border: 1px solid #1a332f;
+  color: #ffffff;
+  box-shadow: 0 6px 20px rgba(31, 41, 38, 0.3);
 }
 
 .profile-head {
@@ -398,18 +419,23 @@ button {
   gap: 0.6rem;
 }
 
+.profile-head h2 {
+  color: #ffffff;
+  margin: 0;
+}
+
 .profile-tag {
   border-radius: 999px;
-  border: 1px solid #bfdbfe;
-  background: #eff6ff;
-  color: #1d4ed8;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
   font-size: 0.74rem;
   padding: 0.16rem 0.56rem;
 }
 
 .profile-goal {
   margin: 0.46rem 0 0;
-  color: #7c2d12;
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .profile-grid {
@@ -420,41 +446,43 @@ button {
 }
 
 .profile-metric {
-  border: 1px solid #f5d0a9;
+  border: 1px solid rgba(255, 255, 255, 0.6);
   border-radius: 12px;
-  background: #fffdf8;
+  background: rgba(255, 255, 255, 0.9);
   padding: 0.55rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
 .profile-metric strong {
   display: block;
   font-size: 1.22rem;
-  color: #0f172a;
+  color: #2f5d56;
 }
 
 .profile-metric span {
   font-size: 0.76rem;
-  color: #7c6a4a;
+  color: #66756f;
 }
 
 .ability-panel,
 .weakness-panel {
   margin-top: 0.7rem;
-  border: 1px dashed #e8c79a;
+  border: 1px solid rgba(255, 255, 255, 0.5);
   border-radius: 12px;
-  background: #fffefb;
-  padding: 0.62rem;
+  background: rgba(255, 255, 255, 0.92);
+  padding: 0.8rem;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
 }
 
 .ability-panel h3,
 .weakness-panel h3 {
   margin: 0;
   font-size: 0.95rem;
-  color: #92400e;
+  color: #1f2926;
 }
 
 .ability-list {
-  margin-top: 0.5rem;
+  margin-top: 0.6rem;
   display: grid;
   gap: 0.45rem;
 }
@@ -467,15 +495,16 @@ button {
 }
 
 .ability-name {
-  color: #78350f;
+  color: #1f2926;
   font-size: 0.78rem;
+  font-weight: 500;
 }
 
 .ability-track {
   position: relative;
   height: 10px;
   border-radius: 999px;
-  background: #ffedd5;
+  background: #e6f2eb;
   overflow: hidden;
 }
 
@@ -483,57 +512,60 @@ button {
   display: block;
   height: 100%;
   border-radius: 999px;
-  background: linear-gradient(90deg, #fb923c 0%, #f97316 70%, #ea580c 100%);
+  background: linear-gradient(90deg, #6ee7b7 0%, #34d399 70%, #10b981 100%);
 }
 
 .ability-score {
   text-align: right;
   font-size: 0.78rem;
-  color: #7c2d12;
+  color: #2f5d56;
+  font-weight: 600;
 }
 
 .weakness-list {
-  margin-top: 0.45rem;
+  margin-top: 0.6rem;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 0.45rem;
+  gap: 0.5rem;
 }
 
 .weakness-item {
-  border: 1px solid #fed7aa;
+  border: 1px solid #cce3db;
   border-radius: 10px;
-  background: #fff7ed;
-  padding: 0.48rem;
+  background: #ffffff;
+  padding: 0.6rem;
+  box-shadow: 0 2px 8px rgba(47, 93, 86, 0.04);
 }
 
 .weakness-item strong {
   display: block;
-  color: #9a3412;
+  color: #1f2926;
   font-size: 0.8rem;
+  font-weight: 600;
 }
 
 .weakness-item span {
   display: block;
-  margin-top: 0.2rem;
-  color: #c2410c;
+  margin-top: 0.25rem;
+  color: #66756f;
   font-size: 0.74rem;
 }
 
 .weakness-item p {
-  margin: 0.2rem 0 0;
-  color: #7c2d12;
+  margin: 0.35rem 0 0;
+  color: #3f655f;
   font-size: 0.74rem;
 }
 
 .plan-card h2,
 .empty h2 {
   margin: 0;
-  color: #1e293b;
+  color: #1f2926;
 }
 
 .empty p {
   margin: 0.35rem 0 0;
-  color: #475569;
+  color: #66756f;
 }
 
 @media (max-width: 780px) {

@@ -175,11 +175,11 @@ const dayBuckets = computed(() => {
   gap: 0.85rem;
   padding: 0.9rem 0.55rem;
   border-radius: 18px;
-  border: 1px solid #f5d0a9;
+  border: 1px solid #cce3db;
   background:
-    radial-gradient(circle at 10% 15%, rgba(254, 243, 199, 0.8) 0, transparent 18%),
-    radial-gradient(circle at 88% 8%, rgba(253, 230, 138, 0.8) 0, transparent 22%),
-    linear-gradient(180deg, #fffdf6 0%, #fff7e6 100%);
+    radial-gradient(circle at 10% 15%, rgba(204, 227, 219, 0.4) 0, transparent 18%),
+    radial-gradient(circle at 88% 8%, rgba(235, 248, 242, 0.6) 0, transparent 22%),
+    linear-gradient(180deg, #ffffff 0%, rgba(240, 247, 244, 0.9) 100%);
   overflow: visible;
 }
 
@@ -193,12 +193,12 @@ const dayBuckets = computed(() => {
   border-radius: 999px;
   background: repeating-linear-gradient(
     180deg,
-    #f59e0b 0,
-    #f59e0b 10px,
-    #fbbf24 10px,
-    #fbbf24 20px
+    #2f5d56 0,
+    #2f5d56 10px,
+    #479e91 10px,
+    #479e91 20px
   );
-  opacity: 0.45;
+  opacity: 0.25;
 }
 
 .day-node {
@@ -207,9 +207,9 @@ const dayBuckets = computed(() => {
   width: calc(50% - 22px);
   padding: 0.64rem;
   border-radius: 18px;
-  border: 1px solid #eab308;
-  background: linear-gradient(145deg, #fffef8 0%, #fff5dc 100%);
-  box-shadow: 0 10px 22px rgba(180, 83, 9, 0.14);
+  border: 1px solid #cce3db;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.95) 0%, rgba(235, 248, 242, 0.6) 100%);
+  box-shadow: 0 10px 22px rgba(47, 93, 86, 0.05);
   animation: floatIn 0.45s ease both;
 }
 
@@ -236,18 +236,18 @@ const dayBuckets = computed(() => {
   display: inline-flex;
   align-items: center;
   border-radius: 999px;
-  border: 1px solid #fdba74;
-  background: #ffedd5;
-  color: #9a3412;
+  border: 1px solid #cce3db;
+  background: rgba(235, 248, 242, 0.8);
+  color: #2f5d56;
   font-size: 0.78rem;
   padding: 0.14rem 0.56rem;
 }
 
 .station-type {
   border-radius: 999px;
-  border: 1px solid #f59e0b;
-  background: #fef3c7;
-  color: #92400e;
+  border: 1px solid #cce3db;
+  background: rgba(255, 255, 255, 0.8);
+  color: #66756f;
   font-size: 0.72rem;
   padding: 0.12rem 0.45rem;
 }
@@ -261,8 +261,8 @@ const dayBuckets = computed(() => {
   position: relative;
   z-index: 1;
   border-radius: 12px;
-  border: 1px solid #fcd34d;
-  background: #fffdf7;
+  border: 1px solid #cce3db;
+  background: rgba(255, 255, 255, 0.95);
   padding: 0.48rem 0.55rem;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
@@ -270,22 +270,22 @@ const dayBuckets = computed(() => {
 .task-pill:hover {
   z-index: 60;
   transform: translateY(-1px);
-  box-shadow: 0 10px 18px rgba(146, 64, 14, 0.18);
+  box-shadow: 0 10px 18px rgba(47, 93, 86, 0.12);
 }
 
 .task-pill.done {
-  border-color: #86efac;
-  background: #f0fdf4;
+  border-color: #2f5d56;
+  background: #e6f2eb;
 }
 
 .task-pill.skipped {
-  border-color: #fdba74;
-  background: #fff7ed;
+  border-color: #cce3db;
+  background: rgba(235, 248, 242, 0.4);
 }
 
 .pill-title {
   display: block;
-  color: #7c2d12;
+  color: #1f2926;
   font-size: 0.86rem;
   font-weight: 600;
 }
@@ -293,7 +293,7 @@ const dayBuckets = computed(() => {
 .pill-meta {
   display: block;
   margin-top: 0.16rem;
-  color: #9a3412;
+  color: #66756f;
   font-size: 0.75rem;
 }
 
@@ -305,7 +305,7 @@ const dayBuckets = computed(() => {
 
 .resource-board-title {
   margin: 0;
-  color: #b45309;
+  color: #2f5d56;
   font-size: 0.74rem;
   font-weight: 700;
 }
@@ -314,7 +314,7 @@ const dayBuckets = computed(() => {
   display: grid;
   grid-template-columns: 96px 1fr;
   text-decoration: none;
-  border: 1px solid #fed7aa;
+  border: 1px solid #cce3db;
   border-radius: 10px;
   overflow: hidden;
   background: #fff;
@@ -323,7 +323,7 @@ const dayBuckets = computed(() => {
 
 .resource-card:hover {
   transform: translateY(-1px);
-  box-shadow: 0 8px 16px rgba(194, 65, 12, 0.18);
+  box-shadow: 0 8px 16px rgba(47, 93, 86, 0.1);
 }
 
 .resource-cover {
@@ -332,23 +332,23 @@ const dayBuckets = computed(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(145deg, #fed7aa, #fdba74);
+  background: linear-gradient(145deg, #cce3db, #a3c4b9);
 }
 
 .resource-cover.focus-technical {
-  background: linear-gradient(145deg, #bfdbfe, #60a5fa);
+  background: linear-gradient(145deg, #bfe2db, #8bc2b5);
 }
 
 .resource-cover.focus-scenario {
-  background: linear-gradient(145deg, #fde68a, #f59e0b);
+  background: linear-gradient(145deg, #dcf0e9, #b5ddcf);
 }
 
 .resource-cover.focus-project {
-  background: linear-gradient(145deg, #fecdd3, #f472b6);
+  background: linear-gradient(145deg, #e6f5ef, #cce8dd);
 }
 
 .resource-cover.focus-expression {
-  background: linear-gradient(145deg, #c4b5fd, #8b5cf6);
+  background: linear-gradient(145deg, #cce8dd, #8ab5a7);
 }
 
 .resource-favicon {
@@ -357,7 +357,7 @@ const dayBuckets = computed(() => {
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.9);
   padding: 2px;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.2);
+  box-shadow: 0 2px 8px rgba(47, 93, 86, 0.1);
 }
 
 .resource-focus {
@@ -366,7 +366,7 @@ const dayBuckets = computed(() => {
   right: 6px;
   bottom: 6px;
   border-radius: 999px;
-  background: rgba(15, 23, 42, 0.32);
+  background: rgba(47, 93, 86, 0.4);
   color: #fff;
   text-align: center;
   font-size: 0.66rem;
@@ -382,13 +382,13 @@ const dayBuckets = computed(() => {
 }
 
 .resource-content strong {
-  color: #7c2d12;
+  color: #1f2926;
   font-size: 0.78rem;
   line-height: 1.35;
 }
 
 .resource-content span {
-  color: #9a3412;
+  color: #66756f;
   font-size: 0.72rem;
 }
 
@@ -399,9 +399,10 @@ const dayBuckets = computed(() => {
   left: calc(100% + 10px);
   width: min(320px, 86vw);
   border-radius: 12px;
-  border: 1px solid #fdba74;
-  background: #fff8e1;
-  box-shadow: 0 16px 32px rgba(124, 45, 18, 0.24);
+  border: 1px solid #cce3db;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 16px 32px rgba(47, 93, 86, 0.15);
   padding: 0.56rem;
 }
 
@@ -412,7 +413,7 @@ const dayBuckets = computed(() => {
 
 .hover-reason {
   margin: 0;
-  color: #7c2d12;
+  color: #1f2926;
   font-size: 0.79rem;
   line-height: 1.5;
 }
@@ -426,20 +427,29 @@ const dayBuckets = computed(() => {
 .hover-actions button {
   border: none;
   border-radius: 8px;
-  background: #ea580c;
+  background: #2f5d56;
   color: #fff;
   font-size: 0.75rem;
   padding: 0.24rem 0.54rem;
   cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.hover-actions button:hover {
+  background: #234741;
 }
 
 .hover-actions button.ghost {
-  background: #fde68a;
-  color: #92400e;
+  background: #e6f2eb;
+  color: #2f5d56;
+}
+
+.hover-actions button.ghost:hover {
+  background: #cce3db;
 }
 
 .empty-day {
-  color: #a16207;
+  color: #66756f;
   font-size: 0.8rem;
 }
 

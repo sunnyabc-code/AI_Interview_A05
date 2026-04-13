@@ -1,6 +1,9 @@
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { playCloudTransition } from '@/utils/cloudTransition'
+import vineSvg from '@/assets/images/vine.svg'
+import forestBg from '@/assets/images/forest-bg.svg'
 
 const router = useRouter()
 
@@ -8,6 +11,7 @@ const activeTab = ref('login')
 const loading = ref(false)
 const error = ref('')
 const success = ref('')
+const isLeaving = ref(false)
 
 const loginForm = reactive({
   login_type: 'email',
@@ -68,8 +72,12 @@ const handleLogin = async () => {
       
       success.value = '登录成功'
       setTimeout(() => {
-        router.push('/home')
-      }, 1000)
+        isLeaving.value = true // 让登录框先虚化退出
+        // 触发全局云雾聚散动画，动画中间会执行 router.push('/home')
+        playCloudTransition(() => {
+          router.push('/home')
+        })
+      }, 500)
     } else {
       error.value = data.message || '登录失败'
     }
@@ -218,29 +226,14 @@ const handleResetPassword = async () => {
 </script>
 
 <template>
-  <div class="auth-container">
+  <div class="auth-container" :class="{ 'is-leaving': isLeaving }">
+    <div class="background-decorations">
+      <img :src="vineSvg" class="vine-decoration top-left" alt="" />
+      <img :src="vineSvg" class="vine-decoration top-right" alt="" />
+      <img :src="forestBg" class="forest-background" alt="" />
+    </div>
+    
     <div class="auth-card">
-      <div class="auth-tabs">
-        <button 
-          :class="['auth-tab', { active: activeTab === 'login' }]"
-          @click="switchTab('login')"
-        >
-          登录
-        </button>
-        <button 
-          :class="['auth-tab', { active: activeTab === 'register' }]"
-          @click="switchTab('register')"
-        >
-          注册
-        </button>
-        <button 
-          :class="['auth-tab', { active: activeTab === 'reset' }]"
-          @click="switchTab('reset')"
-        >
-          找回密码
-        </button>
-      </div>
-
       <div v-if="error" class="error-message">
         {{ error }}
       </div>
@@ -249,18 +242,20 @@ const handleResetPassword = async () => {
       </div>
 
       <form v-if="activeTab === 'login'" class="auth-form" @submit.prevent="handleLogin">
-        <h2>登录</h2>
+        <h2>登录系统</h2>
         
         <div class="login-type-selector">
           <button 
             :class="['type-btn', { active: loginForm.login_type === 'email' }]"
             @click="loginForm.login_type = 'email'"
+            type="button"
           >
             邮箱登录
           </button>
           <button 
             :class="['type-btn', { active: loginForm.login_type === 'phone' }]"
             @click="loginForm.login_type = 'phone'"
+            type="button"
           >
             手机号登录
           </button>
@@ -279,7 +274,10 @@ const handleResetPassword = async () => {
         </div>
 
         <div class="form-group">
-          <label for="password">密码</label>
+          <div class="label-row">
+            <label for="password">密码</label>
+            <a href="#" class="text-link" @click.prevent="switchTab('reset')">找回密码？</a>
+          </div>
           <input 
             type="password" 
             id="password" 
@@ -295,6 +293,11 @@ const handleResetPassword = async () => {
         >
           {{ loading ? '登录中...' : '登录' }}
         </button>
+
+        <div class="auth-footer">
+          <span class="text-muted">新用户？</span>
+          <a href="#" class="text-link" @click.prevent="switchTab('register')">请先进行注册</a>
+        </div>
       </form>
 
       <div v-if="activeTab === 'register'" class="auth-form">
@@ -391,6 +394,11 @@ const handleResetPassword = async () => {
         >
           {{ loading ? '注册中...' : '注册' }}
         </button>
+
+        <div class="auth-footer">
+          <span class="text-muted">已有账号？</span>
+          <a href="#" class="text-link" @click.prevent="switchTab('login')">返回登录</a>
+        </div>
       </div>
 
       <div v-if="activeTab === 'reset'" class="auth-form">
@@ -469,6 +477,10 @@ const handleResetPassword = async () => {
         >
           {{ loading ? '重置中...' : '重置密码' }}
         </button>
+
+        <div class="auth-footer">
+          <a href="#" class="text-link" @click.prevent="switchTab('login')">返回登录</a>
+        </div>
       </div>
     </div>
   </div>
@@ -478,52 +490,105 @@ const handleResetPassword = async () => {
 .auth-container {
   width: 100vw;
   height: 100vh;
-  background: #f5f5f5;
+  background: linear-gradient(180deg, #e8f2ec 0%, #f3f8f5 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  /* 配合 Cover 的上划离场，登录页改为从屏幕最底部切入并上划至中心 */
+  opacity: 0;
+  animation: authSlideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes authSlideUp {
+  0% { opacity: 0; transform: translateY(100vh); }
+  60% { opacity: 1; transform: translateY(-10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* 离场动画：控制整个容器淡出、上滑 */
+.auth-container.is-leaving {
+  animation: authSlideOut 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  pointer-events: none;
+}
+
+@keyframes authSlideOut {
+  0% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-15vh) scale(0.95); filter: blur(10px); }
+}
+
+/* Background Decorative Elements */
+.background-decorations {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.vine-decoration {
+  position: absolute;
+  top: -2vh;
+  width: 30vw;
+  max-width: 400px;
+  min-width: 200px;
+  opacity: 0.6;
+  filter: drop-shadow(0 10px 15px rgba(20, 50, 40, 0.15));
+}
+
+.vine-decoration.top-left {
+  left: -5vw;
+  transform-origin: top left;
+  animation: sway 7s ease-in-out infinite alternate;
+}
+
+.vine-decoration.top-right {
+  right: -5vw;
+  transform-origin: top right;
+  animation: sway-right 8s ease-in-out infinite alternate;
+}
+
+.forest-background {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: auto;
+  min-height: 25vh;
+  object-fit: cover;
+  object-position: bottom;
+  opacity: 0.8;
+  filter: saturate(1.1) brightness(1.05);
+}
+
+@keyframes sway {
+  0% { transform: rotate(-3deg); }
+  100% { transform: rotate(3deg); }
+}
+
+@keyframes sway-right {
+  0% { transform: scaleX(-1) rotate(-3deg); }
+  100% { transform: scaleX(-1) rotate(3deg); }
 }
 
 .auth-card {
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  position: relative;
+  z-index: 2;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
   width: 100%;
   max-width: 450px;
   overflow: hidden;
 }
 
-.auth-tabs {
-  display: flex;
-  border-bottom: 1px solid #e0e0e0;
-}
-
-.auth-tab {
-  flex: 1;
-  padding: 1rem;
-  background: none;
-  border: none;
-  font-size: 1rem;
-  font-weight: 500;
-  color: #666;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.auth-tab:hover {
-  color: #667eea;
-}
-
-.auth-tab.active {
-  color: #667eea;
-  border-bottom: 2px solid #667eea;
-}
-
 .auth-form {
-  padding: 2rem;
+  padding: 2.5rem 2rem;
 }
 
 .auth-form h2 {
@@ -532,6 +597,41 @@ const handleResetPassword = async () => {
   margin-bottom: 2rem;
   font-size: 1.5rem;
   font-weight: 600;
+}
+
+.label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.label-row label {
+  margin-bottom: 0;
+}
+
+.text-link {
+  color: #2f5d56;
+  text-decoration: none;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: opacity 0.3s ease;
+}
+
+.text-link:hover {
+  opacity: 0.8;
+  text-decoration: underline;
+}
+
+.auth-footer {
+  margin-top: 1.5rem;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.text-muted {
+  color: #666;
+  margin-right: 0.5rem;
 }
 
 .login-type-selector {
@@ -553,13 +653,13 @@ const handleResetPassword = async () => {
 }
 
 .type-btn:hover {
-  background: #e8e8e8;
+  background: #e6efeb;
 }
 
 .type-btn.active {
-  background: #667eea;
+  background: #2f5d56;
   color: white;
-  border-color: #667eea;
+  border-color: #2f5d56;
 }
 
 .form-group {
@@ -585,8 +685,8 @@ const handleResetPassword = async () => {
 
 .form-group input:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+  border-color: #2f5d56;
+  box-shadow: 0 0 0 2px rgba(47, 93, 86, 0.2);
 }
 
 .code-input-group {
@@ -600,7 +700,7 @@ const handleResetPassword = async () => {
 
 .send-code-btn {
   padding: 0 1.5rem;
-  background: #667eea;
+  background: #2f5d56;
   color: white;
   border: none;
   border-radius: 4px;
@@ -611,7 +711,7 @@ const handleResetPassword = async () => {
 }
 
 .send-code-btn:hover {
-  background: #764ba2;
+  background: #3f655f;
 }
 
 .send-code-btn:disabled {
@@ -622,7 +722,7 @@ const handleResetPassword = async () => {
 .auth-btn {
   width: 100%;
   padding: 0.75rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #3f655f 0%, #2f5d56 100%);
   color: white;
   border: none;
   border-radius: 4px;
@@ -631,6 +731,11 @@ const handleResetPassword = async () => {
   cursor: pointer;
   transition: all 0.3s ease;
   margin-top: 1rem;
+}
+
+.auth-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(47, 93, 86, 0.2);
 }
 
 .auth-btn:hover {

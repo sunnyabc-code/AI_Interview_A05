@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { RouterView } from 'vue-router'
+import CloudTransition from '@/components/CloudTransition.vue'
 </script>
 
 <template>
   <RouterView />
+  <!-- 全局的云雾过渡动画挂载点 -->
+  <CloudTransition />
 </template>
 
 <style>
@@ -36,13 +39,16 @@ html, body {
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: var(--color-light);
+  /* 统一设为浅绿色渐变大圆底或者继承 Auth 的清新底色 */
+  background: linear-gradient(180deg, #e8f2ec 0%, #f3f8f5 100%);
+  background-attachment: fixed;
   color: var(--color-text);
+  min-height: 100vh;
 }
 
 a {

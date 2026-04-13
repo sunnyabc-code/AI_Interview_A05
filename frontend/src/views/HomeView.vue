@@ -289,10 +289,10 @@ watch(activeMenu, (id) => {
 
 <style scoped>
 .home-container {
-  --bg: #f3f5f4;
-  --surface: #ffffff;
-  --surface-soft: #f8fbf9;
-  --line: #dde5e1;
+  --bg: #f3f8f5;
+  --surface: rgba(255, 255, 255, 0.7);
+  --surface-soft: rgba(248, 251, 249, 0.8);
+  --line: rgba(221, 229, 225, 0.8);
   --line-soft: #e8eeeb;
   --text: #1f2926;
   --muted: #66756f;
@@ -301,21 +301,18 @@ watch(activeMenu, (id) => {
   --danger: #a7564f;
 
   min-height: 100vh;
-  background:
-    radial-gradient(circle at top right, rgba(47, 93, 86, 0.08), transparent 38%),
-    radial-gradient(circle at top left, rgba(31, 41, 38, 0.05), transparent 40%),
-    var(--bg);
+  background: linear-gradient(180deg, #e8f2ec 0%, #f3f8f5 100%);
   display: flex;
   flex-direction: column;
 }
 
 .home-header {
-  background: rgba(255, 255, 255, 0.94);
-  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.6);
   border-radius: 16px;
   margin: 0.75rem 0.75rem 0;
   padding: 0 1rem;
-  box-shadow: 0 12px 24px rgba(31, 41, 38, 0.08);
+  box-shadow: 0 4px 16px rgba(31, 41, 38, 0.04);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -323,7 +320,8 @@ watch(activeMenu, (id) => {
   position: sticky;
   top: 0.75rem;
   z-index: 100;
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .header-left {
@@ -432,10 +430,12 @@ watch(activeMenu, (id) => {
 
 .content-area {
   background: var(--surface);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   padding: 1rem;
   border-radius: 16px;
-  border: 1px solid var(--line);
-  box-shadow: 0 14px 28px rgba(31, 41, 38, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 8px 24px rgba(31, 41, 38, 0.04);
   min-height: 400px;
 }
 

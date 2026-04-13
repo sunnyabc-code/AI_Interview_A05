@@ -510,11 +510,11 @@ onUnmounted(() => {
 
 <style scoped>
 .interview-session {
-  --bg: #f3f5f4;
-  --surface: #fbfcfb;
-  --surface-strong: #ffffff;
-  --line: #dfe6e2;
-  --line-soft: #e9eeeb;
+  --bg: transparent;
+  --surface: rgba(251, 252, 251, 0.6);
+  --surface-strong: rgba(255, 255, 255, 0.8);
+  --line: rgba(223, 230, 226, 0.6);
+  --line-soft: rgba(233, 238, 235, 0.5);
   --text: #1f2926;
   --muted: #66756f;
   --accent: #2f5d56;
@@ -523,10 +523,7 @@ onUnmounted(() => {
   --warning: #9b7a43;
 
   height: 100vh;
-  background:
-    radial-gradient(circle at top right, rgba(47, 93, 86, 0.08), transparent 38%),
-    radial-gradient(circle at top left, rgba(31, 41, 38, 0.04), transparent 42%),
-    var(--bg);
+  background: linear-gradient(180deg, #e8f2ec 0%, #f3f8f5 100%);
   display: flex;
   flex-direction: column;
   overflow: hidden;

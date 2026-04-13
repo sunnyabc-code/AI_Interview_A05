@@ -368,11 +368,11 @@ onMounted(() => {
   min-height: calc(100vh - 120px);
   padding: 1.1rem;
   border-radius: 16px;
-  border: 1px solid #dbeafe;
+  border: 1px solid #cce3db;
   background:
-    radial-gradient(circle at 15% 20%, rgba(191, 219, 254, 0.45), transparent 38%),
-    radial-gradient(circle at 82% 88%, rgba(187, 247, 208, 0.36), transparent 42%),
-    linear-gradient(120deg, #f8fafc 0%, #eef2ff 52%, #f0fdf4 100%);
+    radial-gradient(circle at 15% 20%, rgba(47, 93, 86, 0.08), transparent 38%),
+    radial-gradient(circle at 82% 88%, rgba(204, 227, 219, 0.4), transparent 42%),
+    linear-gradient(120deg, #f0f7f4 0%, #e6f2eb 52%, #ffffff 100%);
 }
 
 .topbar {
@@ -385,23 +385,31 @@ onMounted(() => {
 
 .title-block h1 {
   margin: 0;
-  color: #0f172a;
+  color: #1f2926;
   font-size: 1.5rem;
 }
 
 .title-block p {
   margin: 0.3rem 0 0;
-  color: #475569;
+  color: #66756f;
 }
 
 .back-btn,
 .refresh-btn {
-  border: 1px solid #93c5fd;
-  background: #ffffff;
-  color: #1d4ed8;
+  border: 1px solid #cce3db;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  color: #2f5d56;
   border-radius: 9px;
   padding: 0.52rem 0.9rem;
   cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.back-btn:hover,
+.refresh-btn:not(:disabled):hover {
+  background: #2f5d56;
+  color: white;
 }
 
 .refresh-btn:disabled {
@@ -410,9 +418,9 @@ onMounted(() => {
 }
 
 .error-banner {
-  border: 1px solid #fecaca;
-  background: #fef2f2;
-  color: #991b1b;
+  border: 1px solid #ffcdd2;
+  background: #fff5f5;
+  color: #d32f2f;
   border-radius: 8px;
   padding: 0.7rem 0.9rem;
   margin-bottom: 1rem;
@@ -420,9 +428,11 @@ onMounted(() => {
 
 .main-panel {
   background: rgba(255, 255, 255, 0.86);
-  border: 1px solid #dbeafe;
+  backdrop-filter: blur(12px);
+  border: 1px solid #cce3db;
   border-radius: 14px;
   padding: 1rem;
+  box-shadow: 0 4px 15px rgba(47, 93, 86, 0.05);
 }
 
 .expression-panel {
@@ -437,18 +447,23 @@ onMounted(() => {
 }
 
 .position-tab {
-  border: 1px solid #cbd5e1;
+  border: 1px solid #cce3db;
   border-radius: 999px;
   padding: 0.35rem 0.82rem;
-  background: #ffffff;
-  color: #334155;
+  background: rgba(255, 255, 255, 0.8);
+  color: #66756f;
   cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.position-tab:hover {
+  background: #f0f7f4;
 }
 
 .position-tab.active {
-  border-color: #3b82f6;
-  color: #1d4ed8;
-  background: #eff6ff;
+  border-color: #2f5d56;
+  color: #2f5d56;
+  background: #e6f2eb;
 }
 
 .knowledge-grid {
@@ -459,13 +474,13 @@ onMounted(() => {
 
 .section-title-block h2 {
   margin: 0;
-  color: #0f172a;
+  color: #1f2926;
   font-size: 1.1rem;
 }
 
 .section-title-block p {
   margin: 0.2rem 0 0;
-  color: #475569;
+  color: #66756f;
   font-size: 0.86rem;
 }
 
@@ -484,19 +499,24 @@ onMounted(() => {
 }
 
 .filter-chip {
-  border: 1px solid #cbd5e1;
-  background: #ffffff;
-  color: #334155;
+  border: 1px solid #cce3db;
+  background: rgba(255, 255, 255, 0.8);
+  color: #66756f;
   border-radius: 999px;
   padding: 0.28rem 0.68rem;
   cursor: pointer;
   font-size: 0.78rem;
+  transition: all 0.2s ease;
+}
+
+.filter-chip:hover {
+  background: #f0f7f4;
 }
 
 .filter-chip.active {
-  border-color: #2563eb;
-  color: #1d4ed8;
-  background: #eff6ff;
+  border-color: #2f5d56;
+  color: #2f5d56;
+  background: #e6f2eb;
 }
 
 .risk-chip.active {
@@ -522,20 +542,20 @@ onMounted(() => {
   position: relative;
   height: 430px;
   border-radius: 16px;
-  border: 1px solid #dbeafe;
+  border: 1px solid #cce3db;
   overflow: hidden;
   background:
-    radial-gradient(circle at 14% 15%, rgba(239, 68, 68, 0.14), transparent 42%),
-    radial-gradient(circle at 86% 18%, rgba(16, 185, 129, 0.12), transparent 46%),
-    linear-gradient(145deg, #f8fafc, #eef2ff 55%, #ecfdf5);
+    radial-gradient(circle at 14% 15%, rgba(220, 38, 38, 0.08), transparent 42%),
+    radial-gradient(circle at 86% 18%, rgba(47, 93, 86, 0.12), transparent 46%),
+    linear-gradient(145deg, rgba(235, 248, 242, 0.4), rgba(220, 240, 230, 0.3) 55%, rgba(255, 255, 255, 0.6));
 }
 
 .map-grid {
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(to right, rgba(148, 163, 184, 0.22) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(148, 163, 184, 0.22) 1px, transparent 1px);
+    linear-gradient(to right, rgba(47, 93, 86, 0.08) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(47, 93, 86, 0.08) 1px, transparent 1px);
   background-size: 20% 20%;
   pointer-events: none;
 }
@@ -543,9 +563,10 @@ onMounted(() => {
 .map-axis {
   position: absolute;
   font-size: 0.76rem;
-  color: #475569;
-  background: rgba(255, 255, 255, 0.65);
-  border: 1px solid rgba(148, 163, 184, 0.38);
+  color: #66756f;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(4px);
+  border: 1px solid #cce3db;
   border-radius: 999px;
   padding: 0.15rem 0.5rem;
   pointer-events: none;
@@ -666,20 +687,21 @@ onMounted(() => {
 
 .empty-panel {
   text-align: center;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  border: 1px solid #cce3db;
   border-radius: 12px;
   padding: 1rem;
 }
 
 .empty-panel h2 {
   margin: 0;
-  color: #334155;
+  color: #1f2926;
 }
 
 .empty-panel p {
   margin: 0.45rem 0 0;
-  color: #64748b;
+  color: #66756f;
 }
 
 @media (max-width: 900px) {

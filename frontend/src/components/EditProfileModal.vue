@@ -155,16 +155,6 @@ const handleCancel = () => {
         </div>
 
         <div class="form-group">
-          <label for="avatar">头像URL</label>
-          <input
-            type="text"
-            id="avatar"
-            v-model="editForm.avatar"
-            placeholder="请输入头像URL"
-          />
-        </div>
-
-        <div class="form-group">
           <label>目标岗位</label>
           <div class="checkbox-group">
             <label
@@ -211,7 +201,8 @@ const handleCancel = () => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(31, 41, 38, 0.5);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -221,8 +212,8 @@ const handleCancel = () => {
 
 .modal-content {
   background: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(31, 41, 38, 0.15);
   max-width: 500px;
   width: 100%;
   max-height: 90vh;
@@ -234,12 +225,12 @@ const handleCancel = () => {
   align-items: center;
   justify-content: space-between;
   padding: 1.5rem;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px dashed #dde5e1;
 }
 
 .modal-title {
-  color: #333;
-  font-size: 1.4rem;
+  color: #1f2926;
+  font-size: 1.3rem;
   font-weight: 600;
   margin: 0;
 }
@@ -248,7 +239,7 @@ const handleCancel = () => {
   background: transparent;
   border: none;
   font-size: 2rem;
-  color: #999;
+  color: #66756f;
   cursor: pointer;
   padding: 0;
   width: 32px;
@@ -261,24 +252,24 @@ const handleCancel = () => {
 }
 
 .modal-close:hover {
-  color: #333;
+  color: #2f5d56;
 }
 
 .success-message {
-  background: #d4edda;
-  color: #155724;
+  background: #f0fdf4;
+  color: #166534;
   padding: 0.75rem;
-  border-radius: 4px;
+  border-radius: 8px;
   margin: 0 1.5rem 1rem;
   text-align: center;
   font-size: 0.9rem;
 }
 
 .error-message {
-  background: #fee;
-  color: #e74c3c;
+  background: #fef2f2;
+  color: #b91c1c;
   padding: 0.75rem;
-  border-radius: 4px;
+  border-radius: 8px;
   margin: 0 1.5rem 1rem;
   text-align: center;
   font-size: 0.9rem;
@@ -298,25 +289,28 @@ const handleCancel = () => {
 }
 
 .form-group label {
-  color: #333;
-  font-weight: 500;
-  font-size: 0.9rem;
+  color: #66756f;
+  font-weight: 600;
+  font-size: 0.85rem;
 }
 
 .form-group input[type="text"],
 .form-group input[type="email"] {
-  padding: 0.6rem;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
+  padding: 0.75rem 1rem;
+  border: 1px solid #dde5e1;
+  border-radius: 8px;
   font-size: 0.95rem;
-  transition: all 0.3s ease;
+  color: #1f2926;
+  background: #f9fbfaf8;
+  transition: all 0.2s ease;
   font-family: inherit;
 }
 
 .form-group input:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+  border-color: #2f5d56;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(47, 93, 86, 0.1);
 }
 
 .checkbox-group {
@@ -325,6 +319,10 @@ const handleCancel = () => {
   gap: 0.5rem;
   max-height: 200px;
   overflow-y: auto;
+  border: 1px solid #dde5e1;
+  border-radius: 8px;
+  padding: 0.75rem;
+  background: #f9fbfaf8;
 }
 
 .checkbox-label {
@@ -332,59 +330,72 @@ const handleCancel = () => {
   align-items: center;
   gap: 0.5rem;
   cursor: pointer;
-  font-weight: normal;
+  padding: 0.4rem;
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.checkbox-label:hover {
+  background: #ffffff;
 }
 
 .checkbox-label input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
-  cursor: pointer;
+  width: 1.1rem;
+  height: 1.1rem;
+  border: 1px solid #dde5e1;
+  border-radius: 3px;
+  accent-color: #2f5d56;
 }
 
 .checkbox-label span {
-  color: #666;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
+  color: #1f2926;
 }
 
 .form-actions {
   display: flex;
-  gap: 0.75rem;
-  margin-top: 0.5rem;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding-top: 1.5rem;
+  border-top: 1px dashed #dde5e1;
 }
 
 .btn {
-  flex: 1;
-  padding: 0.6rem;
+  padding: 0.7rem 1.5rem;
   border: none;
-  border-radius: 4px;
+  border-radius: 8px;
   font-size: 0.95rem;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
 }
 
 .btn:disabled {
-  opacity: 0.6;
+  opacity: 0.7;
   cursor: not-allowed;
 }
 
 .btn-cancel {
-  background: #f5f5f5;
-  color: #666;
+  background: transparent;
+  color: #66756f;
+  border: 1px solid #dde5e1;
 }
 
 .btn-cancel:hover:not(:disabled) {
-  background: #e0e0e0;
+  background: #f9fbfaf8;
+  color: #1f2926;
+  border-color: #66756f;
 }
 
 .btn-save {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #2f5d56;
   color: white;
 }
 
 .btn-save:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+  background: #3f655f;
+  box-shadow: 0 4px 12px rgba(47, 93, 86, 0.2);
 }
 
 @media (max-width: 768px) {

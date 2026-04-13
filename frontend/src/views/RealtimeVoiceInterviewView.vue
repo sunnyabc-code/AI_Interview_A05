@@ -1357,10 +1357,7 @@ loadInterviewInfo()
 
   min-height: 100dvh;
   padding: 14px;
-  background:
-    radial-gradient(circle at top left, rgba(47, 93, 86, 0.08), transparent 36%),
-    radial-gradient(circle at top right, rgba(31, 41, 38, 0.05), transparent 34%),
-    var(--bg);
+  background: linear-gradient(180deg, #e8f2ec 0%, #f3f8f5 100%);
   color: var(--text);
   display: grid;
   grid-template-columns: 338px minmax(0, 1fr);

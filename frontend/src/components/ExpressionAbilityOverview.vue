@@ -161,14 +161,14 @@ const renderRadar = () => {
       center: ['50%', '54%'],
       radius: 95,
       splitNumber: 5,
-      axisName: { color: '#334155', fontSize: 12 },
+      axisName: { color: '#66756f', fontSize: 12, fontWeight: 500 },
       splitArea: {
         areaStyle: {
-          color: ['rgba(241,245,249,0.45)', 'rgba(248,250,252,0.65)'],
+          color: ['rgba(235,248,242,0.4)', 'rgba(204,227,219,0.3)'],
         },
       },
-      axisLine: { lineStyle: { color: 'rgba(148,163,184,0.35)' } },
-      splitLine: { lineStyle: { color: 'rgba(148,163,184,0.35)' } },
+      axisLine: { lineStyle: { color: '#cce3db' } },
+      splitLine: { lineStyle: { color: '#cce3db' } },
       indicator: dimensions.map((dim) => ({ name: dim.label, max: scoreUpperBound.value })),
     },
     series: [
@@ -178,9 +178,10 @@ const renderRadar = () => {
           {
             value: radarValues.value,
             name: '平均表现',
-            areaStyle: { color: 'rgba(37,99,235,0.22)' },
-            lineStyle: { color: '#2563eb', width: 2 },
-            itemStyle: { color: '#2563eb' },
+            areaStyle: { color: 'rgba(47,93,86,0.2)' },
+            lineStyle: { color: '#2f5d56', width: 2.5 },
+            itemStyle: { color: '#2f5d56', borderWidth: 2 },
+            symbolSize: 6,
           },
         ],
       },
@@ -423,13 +424,14 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .expression-overview {
-  border: 1px solid #dbeafe;
+  border: 1px solid #1a332f;
   border-radius: 16px;
   padding: 1rem;
   background:
-    radial-gradient(circle at 12% 8%, rgba(14, 165, 233, 0.14), transparent 38%),
-    radial-gradient(circle at 88% 88%, rgba(16, 185, 129, 0.14), transparent 42%),
-    linear-gradient(135deg, #f8fafc, #eef2ff 54%, #f0fdf4);
+    radial-gradient(circle at 12% 8%, rgba(255, 255, 255, 0.08), transparent 38%),
+    radial-gradient(circle at 88% 88%, rgba(204, 227, 219, 0.12), transparent 42%),
+    linear-gradient(135deg, #2f5d56, #234741);
+  box-shadow: 0 6px 20px rgba(47, 93, 86, 0.2);
 }
 
 .head {
@@ -441,23 +443,30 @@ onBeforeUnmount(() => {
 
 .head h2 {
   margin: 0;
-  color: #0f172a;
+  color: #ffffff;
   font-size: 1.12rem;
 }
 
 .head p {
   margin: 0.22rem 0 0;
-  color: #475569;
+  color: rgba(255, 255, 255, 0.8);
   font-size: 0.86rem;
 }
 
 .refresh-btn {
-  border: 1px solid #93c5fd;
-  background: #ffffff;
-  color: #1d4ed8;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  color: #ffffff;
   border-radius: 9px;
   padding: 0.42rem 0.75rem;
   cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.refresh-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.25);
+  color: white;
 }
 
 .refresh-btn:disabled {
@@ -467,9 +476,9 @@ onBeforeUnmount(() => {
 
 .error-banner {
   margin-top: 0.65rem;
-  border: 1px solid #fecaca;
-  background: #fef2f2;
-  color: #991b1b;
+  border: 1px solid #ffcdd2;
+  background: #fff5f5;
+  color: #d32f2f;
   border-radius: 8px;
   padding: 0.64rem 0.82rem;
 }
@@ -484,13 +493,14 @@ onBeforeUnmount(() => {
 .score-card {
   border-radius: 12px;
   padding: 0.66rem 0.72rem;
-  border: 1px solid rgba(148, 163, 184, 0.28);
-  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid #cce3db;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 4px 15px rgba(47, 93, 86, 0.03);
 }
 
 .score-card h3 {
   margin: 0;
-  color: #334155;
+  color: #66756f;
   font-size: 0.84rem;
 }
 
@@ -498,18 +508,18 @@ onBeforeUnmount(() => {
   display: block;
   margin-top: 0.35rem;
   font-size: 1.34rem;
-  color: #0f172a;
+  color: #1f2926;
 }
 
 .score-card p {
   margin: 0.15rem 0 0;
-  color: #64748b;
+  color: #66756f;
   font-size: 0.78rem;
 }
 
 .score-card.strong {
-  border-color: rgba(22, 163, 74, 0.3);
-  background: linear-gradient(145deg, #f0fdf4, #dcfce7);
+  border-color: rgba(47, 93, 86, 0.3);
+  background: linear-gradient(145deg, #e6f2eb, #cce3db);
 }
 
 .score-card.mid {
@@ -530,15 +540,16 @@ onBeforeUnmount(() => {
 }
 
 .panel {
-  border: 1px solid rgba(148, 163, 184, 0.3);
+  border: 1px solid #cce3db;
   border-radius: 12px;
   padding: 0.7rem;
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 4px 15px rgba(47, 93, 86, 0.02);
 }
 
 .panel h3 {
   margin: 0;
-  color: #0f172a;
+  color: #1f2926;
   font-size: 0.95rem;
 }
 

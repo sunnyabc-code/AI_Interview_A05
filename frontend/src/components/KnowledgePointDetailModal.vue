@@ -235,8 +235,8 @@ const yPosition = (value: number) => {
 .modal-mask {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.5);
-  backdrop-filter: blur(2px);
+  background: rgba(31, 41, 38, 0.5);
+  backdrop-filter: blur(4px);
   z-index: 2000;
   display: flex;
   align-items: center;
@@ -248,18 +248,19 @@ const yPosition = (value: number) => {
   width: min(960px, 96vw);
   max-height: 86vh;
   overflow: auto;
-  background: #ffffff;
+  background: rgba(255, 255, 255, 0.95);
   border-radius: 14px;
-  border: 1px solid #dbeafe;
-  box-shadow: 0 24px 48px rgba(2, 6, 23, 0.24);
+  border: 1px solid #cce3db;
+  box-shadow: 0 24px 48px rgba(47, 93, 86, 0.2);
 }
 
 .modal-header {
   position: sticky;
   top: 0;
   z-index: 5;
-  background: linear-gradient(120deg, #eff6ff, #ecfdf5);
-  border-bottom: 1px solid #dbeafe;
+  background: linear-gradient(120deg, rgba(235, 248, 242, 0.9), rgba(220, 240, 230, 0.9));
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid #cce3db;
   padding: 0.95rem 1rem;
   display: flex;
   justify-content: space-between;
@@ -269,28 +270,34 @@ const yPosition = (value: number) => {
 
 .modal-header h2 {
   margin: 0;
-  color: #0f172a;
+  color: #1f2926;
   font-size: 1.18rem;
 }
 
 .modal-header p {
   margin: 0.3rem 0 0;
-  color: #475569;
+  color: #66756f;
   font-size: 0.9rem;
 }
 
 .close-btn {
-  border: 1px solid #93c5fd;
-  background: #ffffff;
-  color: #1d4ed8;
+  border: 1px solid #cce3db;
+  background: rgba(255, 255, 255, 0.8);
+  color: #2f5d56;
   border-radius: 8px;
   padding: 0.45rem 0.75rem;
   cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.close-btn:hover {
+  background: #2f5d56;
+  color: white;
 }
 
 .loading-block {
   padding: 1.2rem;
-  color: #64748b;
+  color: #66756f;
 }
 
 .modal-content {
@@ -298,10 +305,10 @@ const yPosition = (value: number) => {
 }
 
 .trend-panel {
-  border: 1px solid #dbeafe;
+  border: 1px solid #cce3db;
   border-radius: 12px;
   padding: 0.72rem 0.75rem;
-  background: linear-gradient(140deg, #f8fafc, #eff6ff);
+  background: rgba(235, 248, 242, 0.4);
   margin-bottom: 0.9rem;
 }
 
@@ -315,7 +322,7 @@ const yPosition = (value: number) => {
 
 .trend-head h3 {
   margin: 0;
-  color: #0f172a;
+  color: #1f2926;
   font-size: 1rem;
 }
 
@@ -326,7 +333,7 @@ const yPosition = (value: number) => {
 
 .legend-item {
   font-size: 0.8rem;
-  color: #334155;
+  color: #66756f;
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
@@ -340,11 +347,11 @@ const yPosition = (value: number) => {
 }
 
 .logic-dot {
-  background: #16a34a;
+  background: #2f5d56;
 }
 
 .accuracy-dot {
-  background: #1d4ed8;
+  background: #10b981;
 }
 
 .chart-wrap {
@@ -359,12 +366,12 @@ const yPosition = (value: number) => {
 }
 
 .grid-line {
-  stroke: #dbeafe;
+  stroke: #cce3db;
   stroke-width: 1;
 }
 
 .axis-label {
-  fill: #64748b;
+  fill: #66756f;
   font-size: 11px;
 }
 
@@ -380,11 +387,11 @@ const yPosition = (value: number) => {
 }
 
 .logic-line {
-  stroke: #16a34a;
+  stroke: #2f5d56;
 }
 
 .accuracy-line {
-  stroke: #1d4ed8;
+  stroke: #10b981;
 }
 
 .point {
@@ -393,11 +400,11 @@ const yPosition = (value: number) => {
 }
 
 .logic-point {
-  fill: #16a34a;
+  fill: #2f5d56;
 }
 
 .accuracy-point {
-  fill: #1d4ed8;
+  fill: #10b981;
 }
 
 .metrics-grid {
@@ -408,15 +415,15 @@ const yPosition = (value: number) => {
 }
 
 .metrics-grid article {
-  border: 1px solid #e2e8f0;
+  border: 1px solid #cce3db;
   border-radius: 10px;
   padding: 0.6rem 0.7rem;
-  background: #f8fafc;
+  background: rgba(235, 248, 242, 0.4);
 }
 
 .metrics-grid h3 {
   margin: 0;
-  color: #64748b;
+  color: #66756f;
   font-size: 0.82rem;
   font-weight: 500;
 }
@@ -424,7 +431,7 @@ const yPosition = (value: number) => {
 .metrics-grid strong {
   margin-top: 0.2rem;
   display: inline-block;
-  color: #0f172a;
+  color: #1f2926;
   font-size: 1.18rem;
 }
 
@@ -440,15 +447,15 @@ table {
 
 th,
 td {
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid #cce3db;
   text-align: left;
   padding: 0.5rem 0.35rem;
-  color: #334155;
+  color: #66756f;
   font-size: 0.88rem;
 }
 
 th {
-  background: #f8fafc;
-  color: #0f172a;
+  background: rgba(235, 248, 242, 0.4);
+  color: #1f2926;
 }
 </style>

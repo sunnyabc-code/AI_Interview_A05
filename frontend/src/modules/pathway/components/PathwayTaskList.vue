@@ -45,9 +45,9 @@ const statusLabel = (status?: PathwayTask['status']) => {
 }
 
 .task-item {
-  border: 1px solid #dbeafe;
+  border: 1px solid #cce3db;
   border-radius: 10px;
-  background: #fff;
+  background: rgba(255, 255, 255, 0.95);
   padding: 0.65rem;
   display: flex;
   justify-content: space-between;
@@ -57,27 +57,27 @@ const statusLabel = (status?: PathwayTask['status']) => {
 .day {
   display: inline-block;
   border-radius: 999px;
-  border: 1px solid #bfdbfe;
-  color: #1d4ed8;
-  background: #eff6ff;
+  border: 1px solid #cce3db;
+  color: #2f5d56;
+  background: rgba(235, 248, 242, 0.6);
   font-size: 0.75rem;
   padding: 0.08rem 0.45rem;
 }
 
 h4 {
   margin: 0.35rem 0 0;
-  color: #0f172a;
+  color: #1f2926;
   font-size: 0.95rem;
 }
 
 p {
   margin: 0.22rem 0 0;
-  color: #475569;
+  color: #66756f;
   font-size: 0.82rem;
 }
 
 .duration {
-  color: #334155;
+  color: #66756f;
   font-size: 0.82rem;
   white-space: nowrap;
 }
@@ -92,21 +92,21 @@ p {
   border-radius: 999px;
   padding: 0.08rem 0.45rem;
   font-size: 0.72rem;
-  border: 1px solid #cbd5e1;
-  color: #475569;
+  border: 1px solid #cce3db;
+  color: #66756f;
   background: #f8fafc;
 }
 
 .status.done {
-  border-color: #86efac;
-  color: #166534;
-  background: #f0fdf4;
+  border-color: #2f5d56;
+  color: #2f5d56;
+  background: #e6f2eb;
 }
 
 .status.skipped {
-  border-color: #fed7aa;
-  color: #9a3412;
-  background: #fff7ed;
+  border-color: #cce3db;
+  color: #66756f;
+  background: #f8fafc;
 }
 
 .ops {

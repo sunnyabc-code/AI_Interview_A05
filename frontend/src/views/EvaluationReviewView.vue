@@ -871,11 +871,19 @@ const radarOption = computed<echarts.EChartsOption>(() => {
     const adaptabilityAverage = calculateAverageScore(rounds.map(round => round.adaptability_score))
 
     return {
-        color: ['#67F9D8', '#FFE434', '#56A3F1', '#FF917C'],
+        color: ['#2f5d56'],
         title: {
-            text: '面试总体表现'
+            text: '面试总体表现',
+            textStyle: {
+                color: '#1f2926',
+                fontSize: 16,
+                fontWeight: 600
+            }
         },
-        legend: {},
+        legend: {
+            bottom: 0,
+            textStyle: { color: '#66756f' }
+        },
         radar: [
             {
                 indicator: [
@@ -885,30 +893,31 @@ const radarOption = computed<echarts.EChartsOption>(() => {
                     { name: '逻辑思维', max: 100 },
                     { name: '应变能力', max: 100 }
                 ],
-                center: ['50%', '50%'],
+                center: ['50%', '52%'],
                 radius: 100,
                 startAngle: 90,
-                splitNumber: 4,
-                shape: 'circle',
+                splitNumber: 5,
+                shape: 'polygon',
                 axisName: {
-                    formatter: '{value}',
-                    color: '#428BD4'
+                    color: '#66756f',
+                    fontSize: 12,
+                    fontWeight: 500
                 },
                 splitArea: {
                     areaStyle: {
-                        color: ['#77EADF', '#26C3BE', '#64AFE9', '#428BD4'],
-                        shadowColor: 'rgba(0, 0, 0, 0.2)',
-                        shadowBlur: 10
+                        color: ['rgba(235, 248, 242, 0.5)', 'rgba(204, 227, 219, 0.3)'],
+                        shadowColor: 'rgba(47, 93, 86, 0.05)',
+                        shadowBlur: 6
                     }
                 },
                 axisLine: {
                     lineStyle: {
-                        color: 'rgba(255, 228, 52, 0.6)'
+                        color: '#cce3db'
                     }
                 },
                 splitLine: {
                     lineStyle: {
-                        color: 'rgba(255, 228, 52, 0.6)'
+                        color: '#cce3db'
                     }
                 }
             }
@@ -916,9 +925,18 @@ const radarOption = computed<echarts.EChartsOption>(() => {
         series: [
             {
                 type: 'radar',
+                symbolSize: 6,
+                itemStyle: {
+                    color: '#2f5d56',
+                    borderWidth: 2
+                },
+                lineStyle: {
+                    color: '#2f5d56',
+                    width: 2.5
+                },
                 emphasis: {
                     lineStyle: {
-                        width: 4
+                        width: 3.5
                     }
                 },
                 data: [
@@ -932,7 +950,7 @@ const radarOption = computed<echarts.EChartsOption>(() => {
                         ],
                         name: '轮次平均分',
                         areaStyle: {
-                            color: 'rgba(255, 228, 52, 0.6)'
+                            color: 'rgba(47, 93, 86, 0.25)'
                         }
                     }
                 ]
@@ -2485,10 +2503,7 @@ watch(filteredInterviewHistory, visibleItems => {
     display: flex;
     min-height: 100vh;
     height: 100vh;
-    background:
-        radial-gradient(circle at top right, rgba(47, 93, 86, 0.08), transparent 38%),
-        radial-gradient(circle at top left, rgba(31, 41, 38, 0.05), transparent 40%),
-        var(--bg);
+    background: linear-gradient(180deg, #e8f2ec 0%, #f3f8f5 100%);
     border-radius: 16px;
     overflow: hidden;
     border: 1px solid var(--line);
