@@ -2,6 +2,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { playCloudTransition } from '@/utils/cloudTransition'
+import { API_BASE_URL } from '@/utils/api'
 import vineSvg from '@/assets/images/vine.svg'
 import forestBg from '@/assets/images/forest-bg.svg'
 
@@ -36,8 +37,6 @@ const resetForm = reactive({
   new_password: '',
   confirm_password: ''
 })
-
-const API_BASE_URL = 'http://localhost:8000'
 
 const switchTab = (tab: string) => {
   activeTab.value = tab

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
+import { API_BASE_URL } from '@/utils/api'
 
 const props = defineProps<{
   show: boolean
@@ -9,8 +10,6 @@ const emit = defineEmits<{
   close: []
   save: [user: any]
 }>()
-
-const API_BASE_URL = 'http://localhost:8000'
 
 const isEditing = ref(false)
 const loading = ref(false)

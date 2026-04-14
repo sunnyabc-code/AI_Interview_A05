@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { API_BASE_URL } from '@/utils/api'
 import EditProfileModal from '../components/EditProfileModal.vue'
 
 const router = useRouter()
-
-const API_BASE_URL = 'http://localhost:8000'
 
 const user = ref({
   id: 0,

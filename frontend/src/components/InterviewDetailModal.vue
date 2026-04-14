@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-
-const API_BASE_URL = 'http://localhost:8000'
+import { API_BASE_URL } from '@/utils/api'
 const router = useRouter()
 
 const props = defineProps<{
