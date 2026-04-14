@@ -521,6 +521,7 @@ class InterviewNextQuestionView(APIView):
             else 120
         )
         pos_name = (interview.position.name or "").strip() or "该"
+        pos_code = (getattr(interview.position, "code", "") or "").strip().lower()
         ctx = f"难度：{difficulty_code}，答题时间约 {answer_time_seconds} 秒。"
 
         if category_code == "technical":
@@ -572,15 +573,41 @@ class InterviewNextQuestionView(APIView):
             return prompt, meta
 
         if category_code == "scenario":
+            # 场景题必须与岗位匹配；否则模型容易泛化到“通用工程场景”（如 SQL/Java 后端）。
+            # 基于岗位 code 做轻量约束：保证同一套百炼应用也能输出岗位相关题目。
+            if pos_code in ("llm", "llm_position"):
+                role_line = (
+                    f"岗位：{pos_name}（code={pos_code}）。请生成与大模型/算法相关的真实工作场景题。\n"
+                    "考察方向示例（任选其一深入）：训练数据与数据治理、Prompt/对齐、RAG/检索、Embedding、"
+                    "模型评测与指标、推理加速与成本、上下文窗口与记忆、幻觉与安全、线上 A/B、可观测性。\n"
+                    "要求：以业务/产品场景为背景，给出约束条件与目标，追问候选人方案权衡与落地细节。\n"
+                    "避免：Java Web CRUD、Spring/MyBatis、纯后端微服务/数据库表设计等与大模型无关的内容"
+                    "（除非作为算法系统的配套数据管道且与模型效果/评测强相关）。\n"
+                )
+            elif pos_code == "java_backend":
+                role_line = (
+                    f"岗位：{pos_name}（code={pos_code}）。请生成与 Java 后端相关的真实工作场景题。\n"
+                    "考察方向示例（任选其一深入）：高并发/限流熔断、分布式一致性、缓存、消息队列、"
+                    "SQL/事务/索引、接口设计、性能排查、可观测性、权限安全、故障演练。\n"
+                    "要求：以线上问题/需求为背景，给出约束条件与目标，追问候选人方案权衡与落地细节。\n"
+                )
+            else:
+                role_line = (
+                    f"岗位：{pos_name}（code={pos_code or 'unknown'}）。请生成与该岗位强相关的真实工作场景题。\n"
+                    "要求：以业务/产品/线上问题为背景，给出约束条件与目标，追问候选人方案权衡与落地细节。\n"
+                )
+
             if followup_depth == 0:
                 prompt = (
                     f"{ctx}\n"
+                    f"{role_line}"
                     "请生成一个场景题。\n"
                     "只输出问题本身，不要输出答案、编号或解释。"
                 )
             else:
                 prompt = (
                     f"{ctx}\n"
+                    f"{role_line}"
                     "请生成一个不同的场景题，与之前问过的问题不重复。\n"
                     "只输出问题本身，不要输出答案、编号或解释。"
                 )
