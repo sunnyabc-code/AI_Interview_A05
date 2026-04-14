@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { API_BASE_URL } from '@/utils/api'
 import EditProfileModal from '../components/EditProfileModal.vue'
 
 const router = useRouter()
-
-const API_BASE_URL = 'http://localhost:8000'
 
 const user = ref({
   id: 0,
@@ -50,10 +49,33 @@ interface UserProject {
 
 const positions = ref<PositionOption[]>([])
 const projects = ref<UserProject[]>([])
+const projectExpandedMap = ref<Record<number, boolean>>({})
 const showProjectForm = ref(false)
 const projectSubmitting = ref(false)
 const projectError = ref('')
 const editingProjectId = ref<number | null>(null)
+const pendingDeleteProject = ref<UserProject | null>(null)
+
+const projectSummary = computed(() => {
+  const total = projects.value.length
+  const withDescription = projects.value.filter((p) => p.project_description?.trim()).length
+  const withResult = projects.value.filter((p) => p.project_result?.trim()).length
+  const coveredPositions = new Set(projects.value.map((p) => p.position_name).filter(Boolean)).size
+  const latestUpdatedAt = projects.value
+    .map((p) => new Date(p.updated_at || p.created_at).getTime())
+    .filter((t) => !Number.isNaN(t))
+    .sort((a, b) => b - a)[0]
+
+  return {
+    total,
+    withDescription,
+    withResult,
+    coveredPositions,
+    latestUpdatedLabel: latestUpdatedAt
+      ? new Date(latestUpdatedAt).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' })
+      : '暂无',
+  }
+})
 
 const projectForm = ref({
   position: 0,
@@ -75,18 +97,18 @@ const fetchUserInfo = async () => {
   try {
     const token = localStorage.getItem('access_token')
     console.log('Token:', token)
-    
+
     if (!token) {
       router.push('/auth')
       return
     }
-    
+
     const response = await fetch(`${API_BASE_URL}/api/users/profile/`, {
       headers: getAuthHeaders()
     })
-    
+
     console.log('Response status:', response.status)
-    
+
     if (response.ok) {
       const data = await response.json()
       user.value = data.data || user.value
@@ -149,9 +171,34 @@ const fetchProjects = async () => {
     }
     const payload = await response.json()
     projects.value = payload.data || []
+    const nextExpandedMap: Record<number, boolean> = {}
+    projects.value.forEach((project, index) => {
+      nextExpandedMap[project.project_id] = projectExpandedMap.value[project.project_id] ?? index === 0
+    })
+    projectExpandedMap.value = nextExpandedMap
   } catch (err) {
     console.error('获取个人项目失败:', err)
   }
+}
+
+const toggleProjectExpanded = (projectId: number) => {
+  projectExpandedMap.value[projectId] = !projectExpandedMap.value[projectId]
+}
+
+const isProjectExpanded = (projectId: number) => {
+  return !!projectExpandedMap.value[projectId]
+}
+
+const formatProjectDate = (dateText: string) => {
+  const date = new Date(dateText)
+  if (Number.isNaN(date.getTime())) {
+    return '未知时间'
+  }
+  return date.toLocaleDateString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  })
 }
 
 const resetProjectForm = () => {
@@ -226,11 +273,20 @@ const submitProject = async () => {
   }
 }
 
-const deleteProject = async (project: UserProject) => {
-  const ok = window.confirm(`确认删除项目「${project.project_name}」吗？`)
-  if (!ok) {
+const openDeleteProjectDialog = (project: UserProject) => {
+  pendingDeleteProject.value = project
+}
+
+const closeDeleteProjectDialog = () => {
+  pendingDeleteProject.value = null
+}
+
+const confirmDeleteProject = async () => {
+  if (!pendingDeleteProject.value) {
     return
   }
+
+  const project = pendingDeleteProject.value
 
   try {
     const response = await fetch(`${API_BASE_URL}/api/user-projects/${project.project_id}/`, {
@@ -241,6 +297,7 @@ const deleteProject = async (project: UserProject) => {
       return
     }
     await fetchProjects()
+    closeDeleteProjectDialog()
   } catch (err) {
     console.error('删除项目失败:', err)
   }
@@ -252,7 +309,7 @@ onMounted(() => {
     router.push('/auth')
     return
   }
-  
+
   fetchUserInfo()
   fetchPositions()
   fetchProjects()
@@ -323,29 +380,67 @@ onMounted(() => {
             <button class="project-add-btn" @click="openCreateProjectForm">新增项目</button>
           </div>
 
+          <div class="project-overview">
+            <div class="project-overview-stats">
+              <article class="overview-stat-card">
+                <p>项目总数</p>
+                <strong>{{ projectSummary.total }}</strong>
+              </article>
+              <article class="overview-stat-card">
+                <p>岗位覆盖</p>
+                <strong>{{ projectSummary.coveredPositions }}</strong>
+              </article>
+              <article class="overview-stat-card">
+                <p>最近更新</p>
+                <strong>{{ projectSummary.latestUpdatedLabel }}</strong>
+              </article>
+            </div>
+          </div>
+
           <div v-if="projects.length > 0" class="project-list">
             <article v-for="project in projects" :key="project.project_id" class="project-card">
               <div class="project-card-header">
                 <div>
                   <h4>{{ project.project_name }}</h4>
-                  <p>{{ project.position_name }} · {{ project.project_role }}</p>
+                  <div class="project-meta-row">
+                    <span class="project-chip">{{ project.position_name || '未关联岗位' }}</span>
+                    <span class="project-chip">{{ project.project_role || '未填写角色' }}</span>
+                    <span class="project-chip project-chip--date">更新于 {{ formatProjectDate(project.updated_at ||
+                      project.created_at) }}</span>
+                  </div>
                 </div>
                 <div class="project-actions">
+                  <button class="project-action-btn" @click="toggleProjectExpanded(project.project_id)">
+                    {{ isProjectExpanded(project.project_id) ? '收起详情' : '展开详情' }}
+                  </button>
                   <button class="project-action-btn" @click="openEditProjectForm(project)">编辑</button>
-                  <button class="project-action-btn danger" @click="deleteProject(project)">删除</button>
+                  <button class="project-action-btn danger" @click="openDeleteProjectDialog(project)">删除</button>
                 </div>
               </div>
-              <div class="project-block">
-                <label>项目描述</label>
-                <p>{{ project.project_description || '未填写' }}</p>
-              </div>
-              <div class="project-block">
-                <label>项目成果</label>
-                <p>{{ project.project_result || '未填写' }}</p>
-              </div>
+
+              <Transition name="panel-slide">
+                <div v-if="isProjectExpanded(project.project_id)" class="project-detail-grid">
+                  <div class="project-block">
+                    <label>项目描述</label>
+                    <p>{{ project.project_description || '未填写' }}</p>
+                  </div>
+                  <div class="project-block">
+                    <label>项目成果</label>
+                    <p>{{ project.project_result || '未填写' }}</p>
+                  </div>
+                </div>
+              </Transition>
+
+              <p v-if="!isProjectExpanded(project.project_id)" class="project-preview">
+                {{ project.project_description || project.project_result || '暂无详细描述，点击“展开详情”补充和查看完整信息。' }}
+              </p>
+              <div class="project-updated-at">创建于 {{ formatProjectDate(project.created_at) }}</div>
             </article>
           </div>
-          <div v-else class="project-empty">暂无项目，点击“新增项目”开始维护。</div>
+          <div v-else class="project-empty">
+            <p>暂无项目，点击“新增项目”开始维护。</p>
+            <button class="project-add-btn project-add-btn--empty" @click="openCreateProjectForm">立即新增第一个项目</button>
+          </div>
         </section>
       </div>
 
@@ -357,6 +452,19 @@ onMounted(() => {
     </div>
 
     <EditProfileModal :show="showEditModal" @close="handleModalClose" @save="handleModalSave" />
+
+    <div v-if="pendingDeleteProject" class="delete-modal-mask" @click.self="closeDeleteProjectDialog">
+      <div class="delete-modal" role="dialog" aria-modal="true" aria-labelledby="delete-project-title">
+        <h3 id="delete-project-title">确认删除项目</h3>
+        <p>
+          删除后将无法恢复：<strong>{{ pendingDeleteProject.project_name }}</strong>
+        </p>
+        <div class="delete-modal-actions">
+          <button class="secondary-btn" @click="closeDeleteProjectDialog">取消</button>
+          <button class="danger-btn" @click="confirmDeleteProject">确认删除</button>
+        </div>
+      </div>
+    </div>
 
     <div v-if="showProjectForm" class="project-modal-mask" @click.self="closeProjectForm">
       <div class="project-modal">
@@ -602,10 +710,10 @@ onMounted(() => {
   margin-top: 1rem;
   border: 1px solid #cce3db;
   border-radius: 16px;
-  background: linear-gradient(135deg, rgba(235, 248, 242, 0.9), rgba(220, 240, 230, 0.8));
+  background: linear-gradient(145deg, rgba(235, 248, 242, 0.88), rgba(218, 236, 227, 0.78));
   backdrop-filter: blur(10px);
   overflow: hidden;
-  box-shadow: 0 4px 15px rgba(47, 93, 86, 0.05);
+  box-shadow: 0 6px 18px rgba(47, 93, 86, 0.07);
 }
 
 .project-header {
@@ -630,6 +738,37 @@ onMounted(() => {
   font-size: 0.85rem;
 }
 
+.project-overview {
+  padding: 1rem 1.5rem 0;
+}
+
+.project-overview-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
+.overview-stat-card {
+  border: 1px solid #d6e7df;
+  border-radius: 12px;
+  padding: 0.85rem 0.95rem;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.overview-stat-card p {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #66756f;
+}
+
+.overview-stat-card strong {
+  display: inline-block;
+  margin-top: 0.35rem;
+  color: #1f2926;
+  font-size: 1.06rem;
+  font-weight: 700;
+}
+
 .project-add-btn {
   padding: 0.45rem 1rem;
   border: 1px solid #2f5d56;
@@ -648,18 +787,18 @@ onMounted(() => {
 }
 
 .project-list {
-  padding: 1rem 1.5rem;
+  padding: 1rem 1.5rem 1.4rem;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.92rem;
 }
 
 .project-card {
-  border: 1px solid #cce3db;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.85);
-  padding: 1.25rem;
-  box-shadow: 0 2px 8px rgba(47, 93, 86, 0.03);
+  border: 1px solid #d1e4dc;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 1rem 1.05rem;
+  box-shadow: 0 2px 10px rgba(47, 93, 86, 0.04);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -671,7 +810,7 @@ onMounted(() => {
 .project-card-header {
   display: flex;
   justify-content: space-between;
-  align-items: start;
+  align-items: flex-start;
   gap: 0.7rem;
 }
 
@@ -682,15 +821,33 @@ onMounted(() => {
   font-weight: 600;
 }
 
-.project-card-header p {
-  margin: 0.26rem 0 0;
-  color: #66756f;
-  font-size: 0.85rem;
+.project-meta-row {
+  margin-top: 0.45rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.project-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid #d8e7e0;
+  background: #f8fcfa;
+  color: #49605a;
+  font-size: 0.74rem;
+  padding: 0.16rem 0.54rem;
+}
+
+.project-chip--date {
+  color: #607770;
 }
 
 .project-actions {
   display: flex;
-  gap: 0.4rem;
+  gap: 0.38rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .project-action-btn {
@@ -720,7 +877,11 @@ onMounted(() => {
 }
 
 .project-block {
-  margin-top: 1rem;
+  margin-top: 0;
+  padding: 0.8rem 0.85rem;
+  border: 1px solid #e1ece7;
+  border-radius: 10px;
+  background: #fbfdfc;
 }
 
 .project-block label {
@@ -737,10 +898,62 @@ onMounted(() => {
   line-height: 1.5;
 }
 
+.project-detail-grid {
+  margin-top: 0.8rem;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.65rem;
+}
+
+.project-preview {
+  margin: 0.75rem 0 0;
+  color: #4a6059;
+  font-size: 0.88rem;
+  line-height: 1.58;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.project-updated-at {
+  margin-top: 0.52rem;
+  color: #6b8079;
+  font-size: 0.74rem;
+}
+
 .project-empty {
-  padding: 3rem;
-  color: #94a3b8;
+  padding: 2rem 1.4rem 2.4rem;
+  color: #6d837c;
   text-align: center;
+}
+
+.project-empty p {
+  margin: 0;
+}
+
+.project-add-btn--empty {
+  margin-top: 0.95rem;
+}
+
+.panel-slide-enter-active,
+.panel-slide-leave-active {
+  transition: all 0.24s ease;
+  overflow: hidden;
+}
+
+.panel-slide-enter-from,
+.panel-slide-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+  max-height: 0;
+}
+
+.panel-slide-enter-to,
+.panel-slide-leave-from {
+  opacity: 1;
+  transform: translateY(0);
+  max-height: 280px;
 }
 
 .project-modal-mask {
@@ -753,6 +966,69 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   padding: 1rem;
+}
+
+.delete-modal-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(31, 41, 38, 0.42);
+  backdrop-filter: blur(3px);
+  z-index: 1350;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.delete-modal {
+  width: min(440px, 94vw);
+  border-radius: 14px;
+  border: 1px solid #d4e5dd;
+  background: linear-gradient(170deg, #ffffff, #f6fbf8);
+  box-shadow: 0 22px 42px rgba(31, 41, 38, 0.18);
+  padding: 1.2rem 1.25rem;
+}
+
+.delete-modal h3 {
+  margin: 0;
+  color: #1f2926;
+  font-size: 1.08rem;
+}
+
+.delete-modal p {
+  margin: 0.68rem 0 0;
+  color: #4f655e;
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+.delete-modal p strong {
+  color: #2f5d56;
+}
+
+.delete-modal-actions {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.52rem;
+}
+
+.danger-btn {
+  border: none;
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  background: linear-gradient(135deg, #d46a61, #c2554c);
+  color: #ffffff;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
+
+.danger-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(194, 85, 76, 0.28);
+  filter: saturate(1.06);
 }
 
 .project-modal {
@@ -926,7 +1202,7 @@ onMounted(() => {
   .profile-container {
     padding: 1rem;
   }
-  
+
   .profile-card {
     padding: 1.5rem;
   }
@@ -944,15 +1220,37 @@ onMounted(() => {
     align-items: flex-start;
   }
 
+  .project-overview {
+    padding: 0.9rem 1rem 0;
+  }
+
+  .project-overview-stats,
+  .project-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .project-list {
+    padding: 0.9rem 1rem 1.1rem;
+  }
+
+  .project-card-header {
+    flex-direction: column;
+  }
+
+  .project-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
   .project-form-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .avatar-wrapper {
     width: 100px;
     height: 100px;
   }
-  
+
   .avatar-placeholder {
     font-size: 2.5rem;
   }

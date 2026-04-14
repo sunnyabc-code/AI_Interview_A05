@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import * as echarts from 'echarts'
+import { API_BASE_URL } from '@/utils/api'
 
 interface RoundInfo {
     id: string
@@ -146,8 +147,6 @@ interface LevelDisplay {
 }
 
 const router = useRouter()
-
-const API_BASE_URL = 'http://localhost:8000'
 
 const interviewHistory = ref<InterviewHistoryItem[]>([])
 const historySearchKeyword = ref('')

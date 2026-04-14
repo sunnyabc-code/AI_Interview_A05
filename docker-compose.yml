@@ -1,0 +1,51 @@
+version: "3.9"
+
+services:
+  web:
+    image: ai-interview-backend:dev
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: ai-interview-backend
+    restart: unless-stopped
+    ports:
+      - "8001:8000"
+    env_file:
+      - ./backend/.env.docker
+    volumes:
+      - ./backend/media:/app/media
+    depends_on:
+      - redis
+
+  celery-worker:
+    image: ai-interview-backend:dev
+    container_name: ai-interview-celery-worker
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env.docker
+    volumes:
+      - ./backend/media:/app/media
+    depends_on:
+      - redis
+    command: ["celery", "-A", "AI_Interview", "worker", "-l", "info"]
+
+  celery-beat:
+    image: ai-interview-backend:dev
+    container_name: ai-interview-celery-beat
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env.docker
+    volumes:
+      - ./backend/media:/app/media
+    depends_on:
+      - redis
+    command: ["celery", "-A", "AI_Interview", "beat", "-l", "info"]
+    profiles:
+      - beat
+
+  redis:
+    image: redis:7-alpine
+    container_name: ai-interview-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"

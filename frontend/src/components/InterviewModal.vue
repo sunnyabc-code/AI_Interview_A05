@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
-
-const API_BASE_URL = 'http://localhost:8000'
+import { API_BASE_URL } from '@/utils/api'
 
 const props = defineProps<{
   show: boolean

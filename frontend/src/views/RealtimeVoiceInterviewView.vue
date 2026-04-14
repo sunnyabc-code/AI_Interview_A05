@@ -3,13 +3,13 @@ import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuestionTTS } from '../composables/useQuestionTTS'
 import { useAnswerEndDetector } from '../composables/useAnswerEndDetector'
+import { API_BASE_URL } from '@/utils/api'
 
 type AnswerEndReason = 'silence' | 'keyword' | 'max_duration' | 'manual'
 type MainTalkMode = 'click' | 'hold'
 
 const router = useRouter()
 const route = useRoute()
-const API_BASE_URL = 'http://localhost:8000'
 
 const {
   ttsEnabled,

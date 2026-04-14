@@ -1,7 +1,6 @@
 import { ref, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-
-const API_BASE_URL = 'http://localhost:8000'
+import { API_BASE_URL } from '@/utils/api'
 
 export function useInterviewSession() {
   const route = useRoute()
