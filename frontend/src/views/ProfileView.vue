@@ -98,18 +98,18 @@ const fetchUserInfo = async () => {
   try {
     const token = localStorage.getItem('access_token')
     console.log('Token:', token)
-    
+
     if (!token) {
       router.push('/auth')
       return
     }
-    
+
     const response = await fetch(`${API_BASE_URL}/api/users/profile/`, {
       headers: getAuthHeaders()
     })
-    
+
     console.log('Response status:', response.status)
-    
+
     if (response.ok) {
       const data = await response.json()
       user.value = data.data || user.value
@@ -310,7 +310,7 @@ onMounted(() => {
     router.push('/auth')
     return
   }
-  
+
   fetchUserInfo()
   fetchPositions()
   fetchProjects()
@@ -406,7 +406,8 @@ onMounted(() => {
                   <div class="project-meta-row">
                     <span class="project-chip">{{ project.position_name || '未关联岗位' }}</span>
                     <span class="project-chip">{{ project.project_role || '未填写角色' }}</span>
-                    <span class="project-chip project-chip--date">更新于 {{ formatProjectDate(project.updated_at || project.created_at) }}</span>
+                    <span class="project-chip project-chip--date">更新于 {{ formatProjectDate(project.updated_at ||
+                      project.created_at) }}</span>
                   </div>
                 </div>
                 <div class="project-actions">
@@ -440,7 +441,7 @@ onMounted(() => {
           <div v-else class="project-empty">
             <p>暂无项目，点击“新增项目”开始维护。</p>
             <button class="project-add-btn project-add-btn--empty" @click="openCreateProjectForm">立即新增第一个项目</button>
-              </div>
+          </div>
         </section>
       </div>
 
@@ -1202,7 +1203,7 @@ onMounted(() => {
   .profile-container {
     padding: 1rem;
   }
-  
+
   .profile-card {
     padding: 1.5rem;
   }
@@ -1245,12 +1246,12 @@ onMounted(() => {
   .project-form-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .avatar-wrapper {
     width: 100px;
     height: 100px;
   }
-  
+
   .avatar-placeholder {
     font-size: 2.5rem;
   }
