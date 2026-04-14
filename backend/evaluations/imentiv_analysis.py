@@ -88,9 +88,9 @@ class ImentivAnalysisService:
         round_obj = getattr(audio_obj, "round", None)
         round_id = getattr(round_obj, "id", None)
         if round_id is not None:
-            return str(round_id)
+            return str(round_id)[:150]
 
-        return f"audio-{audio_obj.id}"
+        return f"audio-{audio_obj.id}"[:150]
 
     def _build_submit_description(self, audio_obj) -> str:
         round_obj = getattr(audio_obj, "round", None)
@@ -107,7 +107,7 @@ class ImentivAnalysisService:
             if isinstance(raw, str):
                 text = raw.strip()
                 if text:
-                    return text[:1000]
+                    return text[:300]
 
         return f"Interview audio analysis for audio_id={audio_obj.id}"
 
