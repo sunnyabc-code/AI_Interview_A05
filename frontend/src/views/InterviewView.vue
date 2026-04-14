@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { API_BASE_URL } from '@/utils/api'
 import InterviewModal from '../components/InterviewModal.vue'
 import InterviewCard from '../components/InterviewCard.vue'
 import InterviewDetailModal from '../components/InterviewDetailModal.vue'
@@ -28,8 +29,6 @@ const error = ref('')
 const toastMessage = ref('')
 const toastType = ref<'success' | 'error'>('success')
 const showToast = ref(false)
-
-const API_BASE_URL = 'http://localhost:8000'
 
 const positionFilterLabel = computed(() => {
   if (selectedPositionId.value == null) return '全部岗位'
