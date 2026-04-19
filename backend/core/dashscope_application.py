@@ -8,6 +8,8 @@ from typing import Optional, Tuple
 
 from django.conf import settings
 
+from core.position_scope import position_is_llm_scenario_scope
+
 
 class DashScopeApplicationError(Exception):
     """百炼应用调用失败。"""
@@ -37,7 +39,7 @@ def resolve_app_id_for_position(position) -> str:
         v = getattr(settings, "DASHSCOPE_APP_ID_JAVA_BACKEND", "") or ""
         if v.strip():
             return v.strip()
-    if code in ("llm", "llm_position"):
+    if position_is_llm_scenario_scope(position):
         v = getattr(settings, "DASHSCOPE_APP_ID_LLM", "") or ""
         if v.strip():
             return v.strip()

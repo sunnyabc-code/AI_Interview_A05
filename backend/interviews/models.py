@@ -111,7 +111,8 @@ class InterviewRound(models.Model):
         verbose_name="百炼会话ID",
     )
 
-    # 技术链：与 job_knowledge 对齐；主问随机 serial 1~7，追问沿用同链知识点
+    # 技术链：与 job_knowledge.serial_number 对齐（同岗位 job_id=job_positions.id）；追问沿用同链。
+    # 同步 user_knowledge_matrics 时 id_job_knowledge 由 (position_id, job_knowledge_serial) 解析；仅技术题写入。
     job_knowledge_serial = models.IntegerField(
         null=True,
         blank=True,
