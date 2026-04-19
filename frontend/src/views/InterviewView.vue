@@ -386,6 +386,9 @@ onMounted(() => {
 
   width: 100%;
   color: var(--text);
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 240px);
 }
 
 .hero-panel {
@@ -451,6 +454,9 @@ onMounted(() => {
   background: var(--surface);
   box-shadow: 0 14px 28px rgba(31, 41, 38, 0.08);
   padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  min-height: clamp(360px, 54vh, 760px);
 }
 
 .position-filter {
@@ -563,7 +569,7 @@ onMounted(() => {
 
 .empty-state {
   text-align: center;
-  padding: 2.4rem;
+  padding: 2.4rem 1rem;
   color: var(--muted);
   font-size: 0.95rem;
   background: var(--surface-soft);
@@ -573,6 +579,8 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   gap: 0.45rem;
+  flex: 1;
+  min-height: 240px;
 }
 
 .interview-cards {
@@ -620,6 +628,10 @@ onMounted(() => {
 }
 
 @media (max-width: 768px) {
+  .interview-view {
+    min-height: calc(100vh - 200px);
+  }
+
   .hero-panel {
     flex-direction: column;
     align-items: stretch;
@@ -637,6 +649,7 @@ onMounted(() => {
   .interviews-list {
     margin-top: 0.8rem;
     padding: 0.8rem;
+    min-height: calc(100vh - 280px);
   }
   
   .section-title {

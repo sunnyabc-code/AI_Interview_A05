@@ -417,10 +417,11 @@ watch(() => props.show, (newVal) => {
   bottom: 0;
   background: rgba(20, 29, 26, 0.56);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   z-index: 1000;
-  padding: 0.95rem;
+  padding: clamp(1rem, 4vh, 2rem) 0.95rem;
+  overflow-y: auto;
   backdrop-filter: blur(6px);
 }
 
@@ -440,9 +441,9 @@ watch(() => props.show, (newVal) => {
   box-shadow: 0 24px 48px rgba(24, 35, 31, 0.22);
   border: 1px solid var(--line);
   max-width: 640px;
-  width: 100%;
-  max-height: 92vh;
-  overflow: hidden;
+  width: min(640px, calc(100vw - 1.9rem));
+  max-height: calc(100vh - 2rem);
+  overflow: auto;
   display: flex;
   flex-direction: column;
 }
@@ -516,7 +517,6 @@ watch(() => props.show, (newVal) => {
   display: flex;
   flex-direction: column;
   gap: 0.74rem;
-  overflow-y: auto;
 }
 
 .form-group {
@@ -697,7 +697,7 @@ watch(() => props.show, (newVal) => {
 
 @media (max-width: 768px) {
   .modal-content {
-    max-height: 95vh;
+    max-height: calc(100vh - 1.5rem);
     border-radius: 14px;
   }
   

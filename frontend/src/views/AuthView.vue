@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { playCloudTransition } from '@/utils/cloudTransition'
 import { API_BASE_URL } from '@/utils/api'
@@ -68,11 +68,10 @@ const handleLogin = async () => {
       localStorage.setItem('access_token', data.data.access)
       localStorage.setItem('refresh_token', data.data.refresh)
       localStorage.setItem('user', JSON.stringify(data.data.user))
-      
-      success.value = '登录成功'
+
+      success.value = '登录成功，正在进入平台'
       setTimeout(() => {
-        isLeaving.value = true // 让登录框先虚化退出
-        // 触发全局云雾聚散动画，动画中间会执行 router.push('/home')
+        isLeaving.value = true
         playCloudTransition(() => {
           router.push('/home')
         })
@@ -80,7 +79,7 @@ const handleLogin = async () => {
     } else {
       error.value = data.message || '登录失败'
     }
-  } catch (err) {
+  } catch {
     error.value = '网络错误，请稍后重试'
   } finally {
     loading.value = false
@@ -92,22 +91,22 @@ const handleRegister = async () => {
     error.value = '请输入用户名'
     return
   }
-  
+
   if (!registerForm.password || registerForm.password !== registerForm.confirm_password) {
     error.value = '密码不一致'
     return
   }
-  
+
   if (registerForm.register_type === 'email' && !registerForm.email) {
     error.value = '请输入邮箱'
     return
   }
-  
+
   if (registerForm.register_type === 'phone' && !registerForm.phone) {
     error.value = '请输入手机号'
     return
   }
-  
+
   if (!registerForm.verification_code) {
     error.value = '请输入验证码'
     return
@@ -131,11 +130,11 @@ const handleRegister = async () => {
       success.value = '注册成功，请登录'
       setTimeout(() => {
         switchTab('login')
-      }, 1500)
+      }, 1400)
     } else {
       error.value = data.message || '注册失败'
     }
-  } catch (err) {
+  } catch {
     error.value = '网络错误，请稍后重试'
   } finally {
     loading.value = false
@@ -144,13 +143,13 @@ const handleRegister = async () => {
 
 const sendCode = async (type: string, isRegister: boolean = false) => {
   let target = ''
-  
+
   if (isRegister) {
     target = type === 'email' ? registerForm.email : registerForm.phone
   } else {
-    target = type === 'email' ? resetForm.identifier : resetForm.identifier
+    target = resetForm.identifier
   }
-  
+
   if (!target) {
     error.value = '请输入邮箱或手机号'
     return
@@ -176,7 +175,7 @@ const sendCode = async (type: string, isRegister: boolean = false) => {
     } else {
       error.value = data.message || '发送失败'
     }
-  } catch (err) {
+  } catch {
     error.value = '网络错误，请稍后重试'
   } finally {
     loading.value = false
@@ -188,7 +187,7 @@ const handleResetPassword = async () => {
     error.value = '请填写完整信息'
     return
   }
-  
+
   if (resetForm.new_password !== resetForm.confirm_password) {
     error.value = '密码不一致'
     return
@@ -212,11 +211,11 @@ const handleResetPassword = async () => {
       success.value = '密码重置成功，请登录'
       setTimeout(() => {
         switchTab('login')
-      }, 1500)
+      }, 1400)
     } else {
       error.value = data.message || '重置失败'
     }
-  } catch (err) {
+  } catch {
     error.value = '网络错误，请稍后重试'
   } finally {
     loading.value = false
@@ -225,569 +224,682 @@ const handleResetPassword = async () => {
 </script>
 
 <template>
-  <div class="auth-container" :class="{ 'is-leaving': isLeaving }">
-    <div class="background-decorations">
-      <img :src="vineSvg" class="vine-decoration top-left" alt="" />
-      <img :src="vineSvg" class="vine-decoration top-right" alt="" />
-      <img :src="forestBg" class="forest-background" alt="" />
+  <section class="auth-shell" :class="{ 'is-leaving': isLeaving }">
+    <div class="ambient-layer" aria-hidden="true">
+      <div class="mesh mesh-a" />
+      <div class="mesh mesh-b" />
+      <img :src="forestBg" class="forest-ground" alt="" />
+      <img :src="vineSvg" class="vine vine-left" alt="" />
+      <img :src="vineSvg" class="vine vine-right" alt="" />
     </div>
-    
-    <div class="auth-card">
-      <div v-if="error" class="error-message">
-        {{ error }}
-      </div>
-      <div v-if="success" class="success-message">
-        {{ success }}
-      </div>
 
-      <form v-if="activeTab === 'login'" class="auth-form" @submit.prevent="handleLogin">
-        <h2>登录系统</h2>
-        
-        <div class="login-type-selector">
-          <button 
-            :class="['type-btn', { active: loginForm.login_type === 'email' }]"
-            @click="loginForm.login_type = 'email'"
-            type="button"
-          >
-            邮箱登录
-          </button>
-          <button 
-            :class="['type-btn', { active: loginForm.login_type === 'phone' }]"
-            @click="loginForm.login_type = 'phone'"
-            type="button"
-          >
-            手机号登录
-          </button>
+    <div class="auth-layout">
+      <aside class="story-panel">
+        <p class="story-kicker">AI Interview Studio</p>
+        <h1>在进入面试之前，先进入状态。</h1>
+        <p>
+          这不是一个普通登录页。它是你与平台能力体系建立连接的第一步，
+          也是从被动刷题转向主动训练的开始。
+        </p>
+
+        <div class="story-tags">
+          <span>技术维度诊断</span>
+          <span>表达能力评估</span>
+          <span>7日路径生成</span>
         </div>
+      </aside>
 
-        <div class="form-group">
-          <label :for="loginForm.login_type === 'email' ? 'email' : 'phone'">
-            {{ loginForm.login_type === 'email' ? '邮箱' : '手机号' }}
-          </label>
-          <input 
-            :type="loginForm.login_type === 'email' ? 'email' : 'tel'"
-            :id="loginForm.login_type === 'email' ? 'email' : 'phone'"
-            v-model="loginForm.identifier"
-            :placeholder="loginForm.login_type === 'email' ? '请输入邮箱' : '请输入手机号'"
-          />
-        </div>
+      <main class="panel-card">
+        <header class="panel-head">
+          <p>欢迎回来</p>
+          <h2>账户中心</h2>
+        </header>
 
-        <div class="form-group">
-          <div class="label-row">
-            <label for="password">密码</label>
-            <a href="#" class="text-link" @click.prevent="switchTab('reset')">找回密码？</a>
+        <nav class="mode-tabs" aria-label="认证模式切换">
+          <button
+            type="button"
+            :class="['mode-tab', { active: activeTab === 'login' }]"
+            @click="switchTab('login')"
+          >
+            登录
+          </button>
+          <button
+            type="button"
+            :class="['mode-tab', { active: activeTab === 'register' }]"
+            @click="switchTab('register')"
+          >
+            注册
+          </button>
+          <button
+            type="button"
+            :class="['mode-tab', { active: activeTab === 'reset' }]"
+            @click="switchTab('reset')"
+          >
+            找回密码
+          </button>
+        </nav>
+
+        <p v-if="error" class="notice notice-error">{{ error }}</p>
+        <p v-if="success" class="notice notice-success">{{ success }}</p>
+
+        <form v-if="activeTab === 'login'" class="auth-form" @submit.prevent="handleLogin">
+          <div class="switch-row">
+            <button
+              type="button"
+              :class="['switch-chip', { active: loginForm.login_type === 'email' }]"
+              @click="loginForm.login_type = 'email'"
+            >
+              邮箱登录
+            </button>
+            <button
+              type="button"
+              :class="['switch-chip', { active: loginForm.login_type === 'phone' }]"
+              @click="loginForm.login_type = 'phone'"
+            >
+              手机号登录
+            </button>
           </div>
-          <input 
-            type="password" 
-            id="password" 
-            v-model="loginForm.password"
-            placeholder="请输入密码"
-          />
-        </div>
 
-        <button 
-          type="submit"
-          class="auth-btn" 
-          :disabled="loading"
-        >
-          {{ loading ? '登录中...' : '登录' }}
-        </button>
-
-        <div class="auth-footer">
-          <span class="text-muted">新用户？</span>
-          <a href="#" class="text-link" @click.prevent="switchTab('register')">请先进行注册</a>
-        </div>
-      </form>
-
-      <div v-if="activeTab === 'register'" class="auth-form">
-        <h2>注册</h2>
-        
-        <div class="login-type-selector">
-          <button 
-            :class="['type-btn', { active: registerForm.register_type === 'email' }]"
-            @click="registerForm.register_type = 'email'"
-          >
-            邮箱注册
-          </button>
-          <button 
-            :class="['type-btn', { active: registerForm.register_type === 'phone' }]"
-            @click="registerForm.register_type = 'phone'"
-          >
-            手机号注册
-          </button>
-        </div>
-
-        <div class="form-group">
-          <label for="username">用户名</label>
-          <input 
-            type="text" 
-            id="username" 
-            v-model="registerForm.username"
-            placeholder="请输入用户名"
-          />
-        </div>
-
-        <div class="form-group" v-if="registerForm.register_type === 'email'">
-          <label for="reg-email">邮箱</label>
-          <input 
-            type="email" 
-            id="reg-email" 
-            v-model="registerForm.email"
-            placeholder="请输入邮箱"
-          />
-        </div>
-
-        <div class="form-group" v-if="registerForm.register_type === 'phone'">
-          <label for="reg-phone">手机号</label>
-          <input 
-            type="tel" 
-            id="reg-phone" 
-            v-model="registerForm.phone"
-            placeholder="请输入手机号"
-          />
-        </div>
-
-        <div class="form-group">
-          <label for="reg-password">密码</label>
-          <input 
-            type="password" 
-            id="reg-password" 
-            v-model="registerForm.password"
-            placeholder="请输入密码"
-          />
-        </div>
-
-        <div class="form-group">
-          <label for="confirm-password">确认密码</label>
-          <input 
-            type="password" 
-            id="confirm-password" 
-            v-model="registerForm.confirm_password"
-            placeholder="请确认密码"
-          />
-        </div>
-
-        <div class="form-group">
-          <label for="reg-verification-code">验证码</label>
-          <div class="code-input-group">
-            <input 
-              type="text" 
-              id="reg-verification-code" 
-              v-model="registerForm.verification_code"
-              placeholder="请输入验证码"
+          <label class="field">
+            <span>{{ loginForm.login_type === 'email' ? '邮箱地址' : '手机号' }}</span>
+            <input
+              :type="loginForm.login_type === 'email' ? 'email' : 'tel'"
+              v-model="loginForm.identifier"
+              :placeholder="loginForm.login_type === 'email' ? 'name@example.com' : '请输入手机号'"
             />
-            <button 
-              class="send-code-btn"
+          </label>
+
+          <label class="field">
+            <span>密码</span>
+            <input type="password" v-model="loginForm.password" placeholder="请输入密码" />
+          </label>
+
+          <div class="inline-link-row">
+            <button type="button" class="link-btn" @click="switchTab('reset')">忘记密码？</button>
+          </div>
+
+          <button type="submit" class="primary-btn" :disabled="loading">
+            {{ loading ? '登录中...' : '进入平台' }}
+          </button>
+
+          <p class="hint-row">
+            还没有账号？
+            <button type="button" class="link-btn" @click="switchTab('register')">立即创建</button>
+          </p>
+        </form>
+
+        <form v-if="activeTab === 'register'" class="auth-form" @submit.prevent="handleRegister">
+          <div class="switch-row">
+            <button
+              type="button"
+              :class="['switch-chip', { active: registerForm.register_type === 'email' }]"
+              @click="registerForm.register_type = 'email'"
+            >
+              邮箱注册
+            </button>
+            <button
+              type="button"
+              :class="['switch-chip', { active: registerForm.register_type === 'phone' }]"
+              @click="registerForm.register_type = 'phone'"
+            >
+              手机号注册
+            </button>
+          </div>
+
+          <label class="field">
+            <span>用户名</span>
+            <input type="text" v-model="registerForm.username" placeholder="请输入用户名" />
+          </label>
+
+          <label class="field" v-if="registerForm.register_type === 'email'">
+            <span>邮箱地址</span>
+            <input type="email" v-model="registerForm.email" placeholder="name@example.com" />
+          </label>
+
+          <label class="field" v-else>
+            <span>手机号</span>
+            <input type="tel" v-model="registerForm.phone" placeholder="请输入手机号" />
+          </label>
+
+          <label class="field">
+            <span>登录密码</span>
+            <input type="password" v-model="registerForm.password" placeholder="请输入密码" />
+          </label>
+
+          <label class="field">
+            <span>确认密码</span>
+            <input type="password" v-model="registerForm.confirm_password" placeholder="请再次输入密码" />
+          </label>
+
+          <div class="field-inline">
+            <label class="field">
+              <span>验证码</span>
+              <input type="text" v-model="registerForm.verification_code" placeholder="请输入验证码" />
+            </label>
+            <button
+              type="button"
+              class="ghost-btn"
               @click="sendCode(registerForm.register_type, true)"
               :disabled="loading"
             >
               发送验证码
             </button>
           </div>
-        </div>
 
-        <button 
-          class="auth-btn" 
-          @click="handleRegister"
-          :disabled="loading"
-        >
-          {{ loading ? '注册中...' : '注册' }}
-        </button>
-
-        <div class="auth-footer">
-          <span class="text-muted">已有账号？</span>
-          <a href="#" class="text-link" @click.prevent="switchTab('login')">返回登录</a>
-        </div>
-      </div>
-
-      <div v-if="activeTab === 'reset'" class="auth-form">
-        <h2>找回密码</h2>
-        
-        <div class="login-type-selector">
-          <button 
-            :class="['type-btn', { active: resetForm.reset_type === 'email' }]"
-            @click="resetForm.reset_type = 'email'"
-          >
-            邮箱找回
+          <button type="submit" class="primary-btn" :disabled="loading">
+            {{ loading ? '注册中...' : '创建账号' }}
           </button>
-          <button 
-            :class="['type-btn', { active: resetForm.reset_type === 'phone' }]"
-            @click="resetForm.reset_type = 'phone'"
-          >
-            手机号找回
-          </button>
-        </div>
 
-        <div class="form-group">
-          <label :for="resetForm.reset_type === 'email' ? 'reset-email' : 'reset-phone'">
-            {{ resetForm.reset_type === 'email' ? '邮箱' : '手机号' }}
-          </label>
-          <input 
-            :type="resetForm.reset_type === 'email' ? 'email' : 'tel'"
-            :id="resetForm.reset_type === 'email' ? 'reset-email' : 'reset-phone'"
-            v-model="resetForm.identifier"
-            :placeholder="resetForm.reset_type === 'email' ? '请输入邮箱' : '请输入手机号'"
-          />
-        </div>
+          <p class="hint-row">
+            已有账号？
+            <button type="button" class="link-btn" @click="switchTab('login')">返回登录</button>
+          </p>
+        </form>
 
-        <div class="form-group">
-          <label for="verification-code">验证码</label>
-          <div class="code-input-group">
-            <input 
-              type="text" 
-              id="verification-code" 
-              v-model="resetForm.verification_code"
-              placeholder="请输入验证码"
+        <form v-if="activeTab === 'reset'" class="auth-form" @submit.prevent="handleResetPassword">
+          <div class="switch-row">
+            <button
+              type="button"
+              :class="['switch-chip', { active: resetForm.reset_type === 'email' }]"
+              @click="resetForm.reset_type = 'email'"
+            >
+              邮箱找回
+            </button>
+            <button
+              type="button"
+              :class="['switch-chip', { active: resetForm.reset_type === 'phone' }]"
+              @click="resetForm.reset_type = 'phone'"
+            >
+              手机号找回
+            </button>
+          </div>
+
+          <label class="field">
+            <span>{{ resetForm.reset_type === 'email' ? '邮箱地址' : '手机号' }}</span>
+            <input
+              :type="resetForm.reset_type === 'email' ? 'email' : 'tel'"
+              v-model="resetForm.identifier"
+              :placeholder="resetForm.reset_type === 'email' ? 'name@example.com' : '请输入手机号'"
             />
-            <button 
-              class="send-code-btn"
+          </label>
+
+          <div class="field-inline">
+            <label class="field">
+              <span>验证码</span>
+              <input type="text" v-model="resetForm.verification_code" placeholder="请输入验证码" />
+            </label>
+            <button
+              type="button"
+              class="ghost-btn"
               @click="sendCode(resetForm.reset_type, false)"
               :disabled="loading"
             >
               发送验证码
             </button>
           </div>
-        </div>
 
-        <div class="form-group">
-          <label for="new-password">新密码</label>
-          <input 
-            type="password" 
-            id="new-password" 
-            v-model="resetForm.new_password"
-            placeholder="请输入新密码"
-          />
-        </div>
+          <label class="field">
+            <span>新密码</span>
+            <input type="password" v-model="resetForm.new_password" placeholder="请输入新密码" />
+          </label>
 
-        <div class="form-group">
-          <label for="reset-confirm-password">确认新密码</label>
-          <input 
-            type="password" 
-            id="reset-confirm-password" 
-            v-model="resetForm.confirm_password"
-            placeholder="请确认新密码"
-          />
-        </div>
+          <label class="field">
+            <span>确认新密码</span>
+            <input type="password" v-model="resetForm.confirm_password" placeholder="请确认新密码" />
+          </label>
 
-        <button 
-          class="auth-btn" 
-          @click="handleResetPassword"
-          :disabled="loading"
-        >
-          {{ loading ? '重置中...' : '重置密码' }}
-        </button>
+          <button type="submit" class="primary-btn" :disabled="loading">
+            {{ loading ? '重置中...' : '重置密码' }}
+          </button>
 
-        <div class="auth-footer">
-          <a href="#" class="text-link" @click.prevent="switchTab('login')">返回登录</a>
-        </div>
-      </div>
+          <p class="hint-row">
+            记起密码了？
+            <button type="button" class="link-btn" @click="switchTab('login')">返回登录</button>
+          </p>
+        </form>
+      </main>
     </div>
-  </div>
+  </section>
 </template>
 
 <style scoped>
-.auth-container {
-  width: 100vw;
-  height: 100vh;
-  background: linear-gradient(180deg, #e8f2ec 0%, #f3f8f5 100%);
+.auth-shell {
+  --brand-900: #1c3530;
+  --brand-800: #234741;
+  --brand-700: #2f5d56;
+  --brand-600: #3d746b;
+  --ink-900: #1f2926;
+  --ink-700: #4e5e58;
+  --ink-600: #62726c;
+  --line: #c9ddd6;
+  --mist: #eef5f1;
+  --paper: rgba(255, 255, 255, 0.92);
+  --warn: #bf4f4a;
+  --ok: #2b7e64;
+
+  min-height: 100vh;
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  /* 配合 Cover 的上划离场，登录页改为从屏幕最底部切入并上划至中心 */
-  opacity: 0;
-  animation: authSlideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-@keyframes authSlideUp {
-  0% { opacity: 0; transform: translateY(100vh); }
-  60% { opacity: 1; transform: translateY(-10px); }
-  100% { opacity: 1; transform: translateY(0); }
-}
-
-/* 离场动画：控制整个容器淡出、上滑 */
-.auth-container.is-leaving {
-  animation: authSlideOut 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  pointer-events: none;
-}
-
-@keyframes authSlideOut {
-  0% { opacity: 1; transform: translateY(0) scale(1); }
-  100% { opacity: 0; transform: translateY(-15vh) scale(0.95); filter: blur(10px); }
-}
-
-/* Background Decorative Elements */
-.background-decorations {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  padding: 2rem;
   overflow: hidden;
-  z-index: 1;
+  color: var(--ink-900);
+  font-family: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Source Han Sans SC', sans-serif;
+  opacity: 0;
+  animation: panel-enter 0.9s cubic-bezier(0.19, 1, 0.22, 1) forwards;
+}
+
+@keyframes panel-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(40px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.auth-shell.is-leaving {
+  animation: panel-leave 0.7s cubic-bezier(0.32, 0, 0.67, 0) forwards;
   pointer-events: none;
 }
 
-.vine-decoration {
+@keyframes panel-leave {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-12vh) scale(0.97);
+    filter: blur(10px);
+  }
+}
+
+.ambient-layer {
   position: absolute;
-  top: -2vh;
-  width: 30vw;
-  max-width: 400px;
-  min-width: 200px;
-  opacity: 0.6;
-  filter: drop-shadow(0 10px 15px rgba(20, 50, 40, 0.15));
+  inset: 0;
+  pointer-events: none;
 }
 
-.vine-decoration.top-left {
-  left: -5vw;
-  transform-origin: top left;
-  animation: sway 7s ease-in-out infinite alternate;
-}
-
-.vine-decoration.top-right {
-  right: -5vw;
-  transform-origin: top right;
-  animation: sway-right 8s ease-in-out infinite alternate;
-}
-
-.forest-background {
+.mesh {
   position: absolute;
-  bottom: 0;
+  border-radius: 50%;
+  filter: blur(6px);
+}
+
+.mesh-a {
+  width: 58vw;
+  height: 58vw;
+  top: -28vw;
+  left: -12vw;
+  background: radial-gradient(circle, rgba(61, 116, 107, 0.23), rgba(61, 116, 107, 0));
+}
+
+.mesh-b {
+  width: 52vw;
+  height: 52vw;
+  right: -16vw;
+  bottom: -24vw;
+  background: radial-gradient(circle, rgba(47, 93, 86, 0.18), rgba(47, 93, 86, 0));
+}
+
+.forest-ground {
+  position: absolute;
   left: 0;
+  bottom: -1px;
   width: 100%;
-  height: auto;
-  min-height: 25vh;
-  object-fit: cover;
-  object-position: bottom;
-  opacity: 0.8;
-  filter: saturate(1.1) brightness(1.05);
+  opacity: 0.64;
+  filter: saturate(1.1);
 }
 
-@keyframes sway {
-  0% { transform: rotate(-3deg); }
-  100% { transform: rotate(3deg); }
+.vine {
+  position: absolute;
+  width: min(28vw, 390px);
+  opacity: 0.5;
+  top: -1.2rem;
+}
+
+.vine-left {
+  left: -3rem;
+  transform-origin: top left;
+  animation: sway-left 6.6s ease-in-out infinite alternate;
+}
+
+.vine-right {
+  right: -3rem;
+  transform-origin: top right;
+  transform: scaleX(-1);
+  animation: sway-right 7.2s ease-in-out infinite alternate;
+}
+
+@keyframes sway-left {
+  from { transform: rotate(-3deg); }
+  to { transform: rotate(3deg); }
 }
 
 @keyframes sway-right {
-  0% { transform: scaleX(-1) rotate(-3deg); }
-  100% { transform: scaleX(-1) rotate(3deg); }
+  from { transform: scaleX(-1) rotate(-2deg); }
+  to { transform: scaleX(-1) rotate(4deg); }
 }
 
-.auth-card {
+.auth-layout {
   position: relative;
   z-index: 2;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  border-radius: 12px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
-  width: 100%;
-  max-width: 450px;
+  width: min(1080px, 100%);
+  display: grid;
+  grid-template-columns: 1.05fr 1fr;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  background: linear-gradient(145deg, rgba(249, 253, 251, 0.82), rgba(237, 245, 241, 0.78));
+  backdrop-filter: blur(16px);
+  border-radius: 26px;
+  box-shadow:
+    0 26px 60px rgba(31, 41, 38, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
   overflow: hidden;
 }
 
-.auth-form {
-  padding: 2.5rem 2rem;
-}
-
-.auth-form h2 {
-  text-align: center;
-  color: #333;
-  margin-bottom: 2rem;
-  font-size: 1.5rem;
-  font-weight: 600;
-}
-
-.label-row {
+.story-panel {
+  padding: clamp(2rem, 3vw, 3rem);
+  background:
+    linear-gradient(175deg, rgba(28, 53, 48, 0.97), rgba(47, 93, 86, 0.96)),
+    repeating-linear-gradient(
+      -35deg,
+      rgba(255, 255, 255, 0.03) 0,
+      rgba(255, 255, 255, 0.03) 14px,
+      rgba(255, 255, 255, 0) 14px,
+      rgba(255, 255, 255, 0) 28px
+    );
+  color: #f1faf6;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.5rem;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1.2rem;
 }
 
-.label-row label {
-  margin-bottom: 0;
+.story-kicker {
+  margin: 0;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-size: 0.78rem;
+  opacity: 0.84;
 }
 
-.text-link {
-  color: #2f5d56;
-  text-decoration: none;
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition: opacity 0.3s ease;
+.story-panel h1 {
+  margin: 0;
+  font-family: 'STSong', 'Songti SC', 'Noto Serif SC', serif;
+  font-size: clamp(1.75rem, 2.7vw, 2.35rem);
+  line-height: 1.22;
+  letter-spacing: 0.02em;
 }
 
-.text-link:hover {
-  opacity: 0.8;
-  text-decoration: underline;
+.story-panel > p {
+  margin: 0;
+  color: rgba(241, 250, 246, 0.88);
+  line-height: 1.75;
+  font-size: 0.98rem;
 }
 
-.auth-footer {
-  margin-top: 1.5rem;
-  text-align: center;
-  font-size: 0.9rem;
-}
-
-.text-muted {
-  color: #666;
-  margin-right: 0.5rem;
-}
-
-.login-type-selector {
+.story-tags {
+  margin-top: 0.6rem;
   display: flex;
-  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.story-tags span {
+  display: inline-flex;
+  padding: 0.42rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+}
+
+.panel-card {
+  padding: clamp(1.4rem, 2vw, 2rem);
+  display: flex;
+  flex-direction: column;
   gap: 1rem;
 }
 
-.type-btn {
-  flex: 1;
-  padding: 0.75rem;
-  background: #f5f5f5;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
-  font-size: 0.9rem;
-  color: #666;
-  cursor: pointer;
-  transition: all 0.3s ease;
+.panel-head p {
+  margin: 0;
+  color: var(--ink-600);
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
-.type-btn:hover {
-  background: #e6efeb;
+.panel-head h2 {
+  margin: 0.25rem 0 0;
+  color: var(--brand-900);
+  font-family: 'STSong', 'Songti SC', 'Noto Serif SC', serif;
+  font-size: 1.7rem;
+  letter-spacing: 0.03em;
 }
 
-.type-btn.active {
-  background: #2f5d56;
-  color: white;
-  border-color: #2f5d56;
+.mode-tabs {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.45rem;
+  padding: 0.45rem;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, #f7fbf9, #edf5f1);
 }
 
-.form-group {
-  margin-bottom: 1.5rem;
+.mode-tab {
+  border: 0;
+  background: transparent;
+  border-radius: 10px;
+  padding: 0.58rem 0.3rem;
+  color: var(--ink-700);
+  font-size: 0.86rem;
+  font-weight: 700;
+  transition: all 0.25s ease;
 }
 
-.form-group label {
-  display: block;
-  margin-bottom: 0.5rem;
-  color: #666;
-  font-weight: 500;
-  font-size: 0.9rem;
+.mode-tab:hover {
+  color: var(--brand-700);
 }
 
-.form-group input {
-  width: 100%;
-  padding: 0.75rem;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
-  font-size: 1rem;
-  transition: all 0.3s ease;
+.mode-tab.active {
+  background: linear-gradient(145deg, var(--brand-700), var(--brand-600));
+  color: #fff;
+  box-shadow: 0 10px 18px rgba(47, 93, 86, 0.25);
 }
 
-.form-group input:focus {
-  outline: none;
-  border-color: #2f5d56;
-  box-shadow: 0 0 0 2px rgba(47, 93, 86, 0.2);
+.notice {
+  margin: 0;
+  border-radius: 12px;
+  padding: 0.62rem 0.78rem;
+  font-size: 0.88rem;
+  border: 1px solid;
 }
 
-.code-input-group {
+.notice-error {
+  color: #8f3430;
+  border-color: #f0c6c4;
+  background: #fff3f2;
+}
+
+.notice-success {
+  color: #1e6f55;
+  border-color: #b9dfcf;
+  background: #ecfaf3;
+}
+
+.auth-form {
   display: flex;
-  gap: 0.75rem;
+  flex-direction: column;
+  gap: 0.9rem;
 }
 
-.code-input-group input {
-  flex: 1;
+.switch-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.55rem;
 }
 
-.send-code-btn {
-  padding: 0 1.5rem;
-  background: #2f5d56;
-  color: white;
-  border: none;
-  border-radius: 4px;
+.switch-chip {
+  border: 1px solid var(--line);
+  background: #f8fbf9;
+  color: var(--ink-700);
+  border-radius: 10px;
+  padding: 0.55rem 0.68rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  transition: all 0.2s ease;
+}
+
+.switch-chip:hover {
+  border-color: #a9c9bf;
+}
+
+.switch-chip.active {
+  border-color: var(--brand-700);
+  color: var(--brand-700);
+  background: #edf6f2;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.42rem;
+}
+
+.field > span {
+  font-size: 0.84rem;
+  color: var(--ink-700);
+}
+
+.field input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0.7rem 0.82rem;
+  font-size: 0.94rem;
+  color: var(--ink-900);
+  background: rgba(255, 255, 255, 0.9);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.field input:focus {
+  outline: 0;
+  border-color: var(--brand-600);
+  box-shadow: 0 0 0 4px rgba(61, 116, 107, 0.15);
+}
+
+.field-inline {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.55rem;
+  align-items: end;
+}
+
+.primary-btn,
+.ghost-btn {
+  border-radius: 12px;
+  font-weight: 700;
   font-size: 0.9rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
+  transition: transform 0.22s ease, box-shadow 0.22s ease, opacity 0.22s ease;
+}
+
+.primary-btn {
+  border: 0;
+  padding: 0.78rem 1rem;
+  color: #fff;
+  background: linear-gradient(145deg, var(--brand-700), var(--brand-600));
+  box-shadow: 0 12px 24px rgba(47, 93, 86, 0.26);
+}
+
+.primary-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.ghost-btn {
+  border: 1px solid #9ebeb4;
+  background: #f4fbf8;
+  color: var(--brand-800);
+  padding: 0.72rem 0.92rem;
   white-space: nowrap;
 }
 
-.send-code-btn:hover {
-  background: #3f655f;
+.ghost-btn:hover:not(:disabled) {
+  border-color: var(--brand-700);
 }
 
-.send-code-btn:disabled {
-  background: #a0a0a0;
+.primary-btn:disabled,
+.ghost-btn:disabled {
+  opacity: 0.56;
   cursor: not-allowed;
 }
 
-.auth-btn {
-  width: 100%;
-  padding: 0.75rem;
-  background: linear-gradient(135deg, #3f655f 0%, #2f5d56 100%);
-  color: white;
-  border: none;
-  border-radius: 4px;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  margin-top: 1rem;
+.inline-link-row,
+.hint-row {
+  margin: 0;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.28rem;
+  color: var(--ink-600);
+  font-size: 0.83rem;
 }
 
-.auth-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(47, 93, 86, 0.2);
+.hint-row {
+  justify-content: center;
 }
 
-.auth-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+.link-btn {
+  border: 0;
+  background: transparent;
+  color: var(--brand-700);
+  font-weight: 700;
+  padding: 0;
 }
 
-.auth-btn:disabled {
-  background: #a0a0a0;
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
+.link-btn:hover {
+  text-decoration: underline;
 }
 
-.error-message {
-  background: #fee;
-  color: #e74c3c;
-  padding: 0.75rem;
-  border-radius: 4px;
-  margin: 1rem 2rem;
-  text-align: center;
-  font-size: 0.9rem;
-}
-
-.success-message {
-  background: #efe;
-  color: #27ae60;
-  padding: 0.75rem;
-  border-radius: 4px;
-  margin: 1rem 2rem;
-  text-align: center;
-  font-size: 0.9rem;
-}
-
-@media (max-width: 480px) {
-  .auth-card {
-    margin: 1rem;
+@media (max-width: 980px) {
+  .auth-layout {
+    grid-template-columns: 1fr;
+    max-width: 620px;
   }
-  
-  .auth-form {
-    padding: 1.5rem;
+
+  .story-panel {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+    padding-bottom: 1.5rem;
   }
-  
-  .login-type-selector {
-    flex-direction: column;
+}
+
+@media (max-width: 640px) {
+  .auth-shell {
+    padding: 0.9rem;
   }
-  
-  .code-input-group {
-    flex-direction: column;
+
+  .panel-card {
+    padding: 1rem;
   }
-  
-  .send-code-btn {
-    padding: 0.75rem;
+
+  .mode-tab {
+    font-size: 0.78rem;
+    padding: 0.55rem 0.2rem;
+  }
+
+  .field-inline {
+    grid-template-columns: 1fr;
+  }
+
+  .vine {
+    opacity: 0.3;
   }
 }
 </style>
