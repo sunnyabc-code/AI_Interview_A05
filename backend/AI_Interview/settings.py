@@ -258,6 +258,14 @@ INTERVIEW_PREFER_LLM_OVER_BANK = os.getenv(
     "INTERVIEW_PREFER_LLM_OVER_BANK", "true"
 ).lower() in ("1", "true", "yes", "on")
 
+# user_knowledge_matrics 同步时是否在终端打印 [user_knowledge_matrics] 行（不写前端）
+UKM_SYNC_CONSOLE_LOG = os.getenv("UKM_SYNC_CONSOLE_LOG", "true").lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
+
 # iMentiv 音频情感分析配置（硬编码，仅用于本地调试）
 IMENTIV_BASE_URL = "https://api.imentiv.ai"
 IMENTIV_API_KEY = "zRkQbCzcz1OuH0lbe6i9AppfHXUpu-5T4OpZSXkJNv6jIcA90G75YwuZ2xF0Dbmcc3k"

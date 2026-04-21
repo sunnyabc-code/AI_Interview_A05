@@ -17,6 +17,7 @@ from core.dashscope_application import (
     is_dashscope_configured_for_position,
     resolve_app_id_for_position,
 )
+from core.position_scope import position_is_llm_scenario_scope
 from interviews.models import Interview, InterviewRound
 from interviews.serializers import (
     InterviewCreateSerializer,
@@ -574,8 +575,8 @@ class InterviewNextQuestionView(APIView):
 
         if category_code == "scenario":
             # 场景题必须与岗位匹配；否则模型容易泛化到“通用工程场景”（如 SQL/Java 后端）。
-            # 基于岗位 code 做轻量约束：保证同一套百炼应用也能输出岗位相关题目。
-            if pos_code in ("llm", "llm_position"):
+            # LLM 岗除 code=llm 外，兼容 large_model / 名称含「大模型」等，避免落入泛化分支或默认 Java 百炼应用。
+            if position_is_llm_scenario_scope(interview.position):
                 role_line = (
                     f"岗位：{pos_name}（code={pos_code}）。请生成与大模型/算法相关的真实工作场景题。\n"
                     "考察方向示例（任选其一深入）：训练数据与数据治理、Prompt/对齐、RAG/检索、Embedding、"
@@ -595,6 +596,8 @@ class InterviewNextQuestionView(APIView):
                 role_line = (
                     f"岗位：{pos_name}（code={pos_code or 'unknown'}）。请生成与该岗位强相关的真实工作场景题。\n"
                     "要求：以业务/产品/线上问题为背景，给出约束条件与目标，追问候选人方案权衡与落地细节。\n"
+                    "约束：技术场景必须与上述岗位名称/code 所暗示的领域一致，禁止套用与本岗位无关的"
+                    "典型技术栈出题（例如非 Java 后端岗不要出 Spring/微服务排障类题）。\n"
                 )
 
             if followup_depth == 0:
@@ -1351,5 +1354,5 @@ class InterviewEvaluationSummaryView(APIView):
         if interview.status != "completed":
             return APIResponse.error(message="面试未完成，暂无评估摘要", code=400)
 
-        data = build_evaluation_summary(interview)
+        data = build_evaluation_summary(interview, run_knowledge_sync=True)
         return APIResponse.success(data=data, message="获取成功", code=200)
