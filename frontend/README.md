@@ -35,6 +35,22 @@ npm install
 npm run dev
 ```
 
+### Environment Variables
+
+- Development uses `.env.development`:
+
+```sh
+VITE_API_BASE_URL=http://localhost:8001
+```
+
+- Production uses `.env.production`:
+
+```sh
+VITE_API_BASE_URL=https://your-backend-domain
+```
+
+If `VITE_API_BASE_URL` is empty in production, the frontend sends requests to same-origin paths.
+
 ### Type-Check, Compile and Minify for Production
 
 ```sh

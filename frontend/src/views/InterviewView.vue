@@ -87,7 +87,7 @@ const fetchInterviews = async () => {
       selectedPositionId.value != null
         ? `?position_id=${selectedPositionId.value}`
         : ''
-    const response = await fetch(`${API_BASE_URL}/api/v1/interviews${q}`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/interviews/${q}`, {
       headers: getAuthHeaders()
     })
     
