@@ -1,2 +1,3 @@
 # AI_Interview_A05
 软件工程管理与经济/大学生服务外包创新创业大赛
+详情请见init_Config分支
