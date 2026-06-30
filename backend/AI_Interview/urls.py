@@ -49,7 +49,6 @@ schema_view = get_schema_view(
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    # 其他路由...
     path('api/users/', include('users.urls')),
     path('api/positions/', include('positions.urls')),
     path('api/user-projects/', include('user_projects.urls')),

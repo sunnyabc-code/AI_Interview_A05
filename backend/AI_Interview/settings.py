@@ -101,9 +101,9 @@ DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.mysql",
         "NAME": "ai_interview_database",
-        "USER": "user",
+        "USER": "course_user",
         "PASSWORD": "password123",
-        "HOST": "121.40.66.75",
+        "HOST": "122.9.42.110",
         "PORT": "3306",
     }
 }
@@ -273,7 +273,7 @@ IMENTIV_LANGUAGE = "zh"
 IMENTIV_TIMEOUT_SECONDS = 60
 IMENTIV_POLL_INTERVAL_SECONDS = 2.0
 IMENTIV_MAX_POLLS = 30
-IMENTIV_REFERER = "http://127.0.0.1:8000/"
+IMENTIV_REFERER = "http://127.0.0.1:8001/"
 IMENTIV_IS_INTERNAL = True
 
 # Celery 配置
