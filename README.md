@@ -121,7 +121,9 @@ docker compose up --build
 docker compose --profile beat up --build
 ```
 
-![1782807175411](image/README/1782807175411.png)
+<img src="image/README/1782807175411.png" alt="图片描述" width="600" />
+
+<img src="image/README/1782809372108.png" alt="图片描述" width="600" />
 
 ## 配置说明
 
