@@ -36,7 +36,7 @@ async function fetchSummary(): Promise<{
 }> {
   const id = route.params.id
   const res = await fetch(
-    `${API_BASE_URL}/api/v1/interviews/${id}/evaluation-summary/`,
+    `${API_BASE_URL}/v1/interviews/${id}/evaluation-summary/`,
     { headers: getAuthHeaders() },
   )
   const json = await res.json()

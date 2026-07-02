@@ -54,7 +54,7 @@ const getAuthHeaders = () => {
 
 const fetchPositions = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/positions/`, {
+    const response = await fetch(`${API_BASE_URL}/positions/`, {
       headers: getAuthHeaders(),
     })
     if (response.ok) {
@@ -87,7 +87,7 @@ const fetchInterviews = async () => {
       selectedPositionId.value != null
         ? `?position_id=${selectedPositionId.value}`
         : ''
-    const response = await fetch(`${API_BASE_URL}/api/v1/interviews/${q}`, {
+    const response = await fetch(`${API_BASE_URL}/v1/interviews/${q}`, {
       headers: getAuthHeaders()
     })
     
@@ -144,9 +144,9 @@ const handleStartInterview = async (interview: any) => {
       return
     }
 
-    let endpoint = `${API_BASE_URL}/api/v1/interviews/${interview.id}/start/`
+    let endpoint = `${API_BASE_URL}/v1/interviews/${interview.id}/start/`
     if (interview.status === 'paused') {
-      endpoint = `${API_BASE_URL}/api/v1/interviews/${interview.id}/resume/`
+      endpoint = `${API_BASE_URL}/v1/interviews/${interview.id}/resume/`
     }
 
     const response = await fetch(endpoint, {
@@ -187,7 +187,7 @@ const showToastMessage = (message: string, type: 'success' | 'error' = 'success'
 
 const handleDeleteInterview = async (interviewId: number) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/v1/interviews/${interviewId}/`, {
+    const response = await fetch(`${API_BASE_URL}/v1/interviews/${interviewId}/`, {
       method: 'DELETE',
       headers: getAuthHeaders()
     })

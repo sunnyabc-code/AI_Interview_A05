@@ -1267,7 +1267,7 @@ const scheduleVoiceLlmPolling = (interviewId: string, delayMs = 4000) => {
 const triggerVoiceLlmGeneration = async (interviewId: string) => {
     try {
         const response = await fetch(
-            `${API_BASE_URL}/api/evaluations/interviews/${interviewId}/voice-llm-result/run/`,
+            `${API_BASE_URL}/evaluations/interviews/${interviewId}/voice-llm-result/run/`,
             {
                 method: 'POST',
                 headers: getAuthHeaders(),
@@ -1317,7 +1317,7 @@ const fetchInterviewVoiceLlmResult = async (
 
     try {
         const response = await fetch(
-            `${API_BASE_URL}/api/evaluations/interviews/${interviewId}/voice-llm-result/`,
+            `${API_BASE_URL}/evaluations/interviews/${interviewId}/voice-llm-result/`,
             {
                 headers: getAuthHeaders()
             }
@@ -1404,7 +1404,7 @@ const fetchRoundAudioAnalysis = async (interviewId: string, roundId: string) => 
     audioAnalysisErrors.value = nextAudioErrors
 
     try {
-        const response = await fetch(`${API_BASE_URL}/api/evaluations/rounds/${roundId}/audio-analysis/`, {
+        const response = await fetch(`${API_BASE_URL}/evaluations/rounds/${roundId}/audio-analysis/`, {
             headers: getAuthHeaders()
         })
 
@@ -1439,7 +1439,7 @@ const fetchInterviewRounds = async (interviewId: string) => {
     roundError.value = ''
 
     try {
-        const response = await fetch(`${API_BASE_URL}/api/v1/interviews/${interviewId}/rounds/`, {
+        const response = await fetch(`${API_BASE_URL}/v1/interviews/${interviewId}/rounds/`, {
             headers: getAuthHeaders()
         })
 
@@ -1479,7 +1479,7 @@ const fetchInterviewHistory = async () => {
     interviewError.value = ''
 
     try {
-        const response = await fetch(`${API_BASE_URL}/api/v1/interviews/`, {
+        const response = await fetch(`${API_BASE_URL}/v1/interviews/`, {
             headers: getAuthHeaders()
         })
 

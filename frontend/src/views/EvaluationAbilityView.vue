@@ -187,7 +187,7 @@ const fetchKnowledgeList = async () => {
   loading.value = true
   errorMessage.value = ''
   try {
-    const res = await api.get('/api/recommendations/knowledge-feedback/')
+    const res = await api.get('/recommendations/knowledge-feedback/')
     if (res.code !== 200) {
       throw new Error(res.message || '获取知识点列表失败')
     }
@@ -213,7 +213,7 @@ const openKnowledgeDetail = async (knowledge: KnowledgePointSummary) => {
   selectedKnowledgeDetail.value = null
 
   try {
-    const res = await api.get(`/api/recommendations/knowledge-feedback/${knowledge.knowledge_id}/detail/`)
+    const res = await api.get(`/recommendations/knowledge-feedback/${knowledge.knowledge_id}/detail/`)
     if (res.code !== 200) {
       throw new Error(res.message || '获取知识点详情失败')
     }

@@ -103,7 +103,7 @@ const fetchUserInfo = async () => {
       return
     }
 
-    const response = await fetch(`${API_BASE_URL}/api/users/profile/`, {
+    const response = await fetch(`${API_BASE_URL}/users/profile/`, {
       headers: getAuthHeaders()
     })
 
@@ -148,7 +148,7 @@ const handleLogout = () => {
 
 const fetchPositions = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/positions/`, {
+    const response = await fetch(`${API_BASE_URL}/positions/`, {
       headers: getAuthHeaders(),
     })
     if (!response.ok) {
@@ -163,7 +163,7 @@ const fetchPositions = async () => {
 
 const fetchProjects = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/user-projects/`, {
+    const response = await fetch(`${API_BASE_URL}/user-projects/`, {
       headers: getAuthHeaders(),
     })
     if (!response.ok) {
@@ -248,8 +248,8 @@ const submitProject = async () => {
   try {
     const isEdit = editingProjectId.value !== null
     const endpoint = isEdit
-      ? `${API_BASE_URL}/api/user-projects/${editingProjectId.value}/`
-      : `${API_BASE_URL}/api/user-projects/`
+      ? `${API_BASE_URL}/user-projects/${editingProjectId.value}/`
+      : `${API_BASE_URL}/user-projects/`
 
     const response = await fetch(endpoint, {
       method: isEdit ? 'PATCH' : 'POST',
@@ -289,7 +289,7 @@ const confirmDeleteProject = async () => {
   const project = pendingDeleteProject.value
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/user-projects/${project.project_id}/`, {
+    const response = await fetch(`${API_BASE_URL}/user-projects/${project.project_id}/`, {
       method: 'DELETE',
       headers: getAuthHeaders(),
     })

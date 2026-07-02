@@ -112,10 +112,10 @@ const loadHomeDashboard = async () => {
   homeLoading.value = true
   try {
     const [profileRes, interviewsRes, projectsRes, positionsRes] = await Promise.all([
-      api.get('/api/users/profile/'),
-      api.get('/api/v1/interviews/'),
-      api.get('/api/user-projects/'),
-      api.get('/api/positions/'),
+      api.get('/users/profile/'),
+      api.get('/v1/interviews/'),
+      api.get('/user-projects/'),
+      api.get('/positions/'),
     ])
 
     if (profileRes.code === 200 && profileRes.data) {

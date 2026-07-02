@@ -33,7 +33,7 @@ const fetchInterviewDetail = async () => {
   error.value = ''
   
   try {
-    const response = await fetch(`${API_BASE_URL}/api/v1/interviews/${props.interviewId}/`, {
+    const response = await fetch(`${API_BASE_URL}/v1/interviews/${props.interviewId}/`, {
       headers: getAuthHeaders()
     })
     

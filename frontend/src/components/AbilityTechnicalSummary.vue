@@ -406,7 +406,7 @@ const fetchSummary = async () => {
   loading.value = true
   errorMessage.value = ''
   try {
-    const listRes = (await api.get('/api/v1/interviews/')) as ApiResp<InterviewListItem[]>
+    const listRes = (await api.get('/v1/interviews/')) as ApiResp<InterviewListItem[]>
     if (listRes.code !== 200) {
       throw new Error(listRes.message || '获取面试记录失败')
     }
@@ -418,7 +418,7 @@ const fetchSummary = async () => {
     }
 
     const roundResults = await Promise.allSettled(
-      interviews.map((interview) => api.get(`/api/v1/interviews/${interview.id}/rounds/`))
+      interviews.map((interview) => api.get(`/v1/interviews/${interview.id}/rounds/`))
     )
 
     const roundsByInterview: Record<number, InterviewRoundItem[]> = {}

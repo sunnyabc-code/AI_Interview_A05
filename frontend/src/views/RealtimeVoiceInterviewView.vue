@@ -408,7 +408,7 @@ const uploadRecordedAudio = async (blob: Blob, durationSeconds: number) => {
 
   try {
     const response = await fetch(
-      `${API_BASE_URL}/api/v1/interviews/${interviewId.value}/rounds/${currentRoundId.value}/audio/`,
+      `${API_BASE_URL}/v1/interviews/${interviewId.value}/rounds/${currentRoundId.value}/audio/`,
       {
         method: 'POST',
         headers: {
@@ -459,7 +459,7 @@ async function submitPlaceholderAndAdvance() {
 
   try {
     await postJson(
-      `${API_BASE_URL}/api/v1/interviews/${interviewId.value}/rounds/${roundId}/answer/`,
+      `${API_BASE_URL}/v1/interviews/${interviewId.value}/rounds/${roundId}/answer/`,
       { user_answer: '1' },
     )
     addLog('已自动提交语音占位回答，准备获取下一题。')
@@ -720,7 +720,7 @@ const fetchNextQuestion = async () => {
   if (!interviewId.value) return false
 
   try {
-    const data = await postJson(`${API_BASE_URL}/api/v1/interviews/${interviewId.value}/next-question/`, {})
+    const data = await postJson(`${API_BASE_URL}/v1/interviews/${interviewId.value}/next-question/`, {})
 
     if (data.code === 201 && data.data) {
       questionText.value = data.data.question_content || ''
@@ -804,7 +804,7 @@ const pauseInterview = async () => {
 
   try {
     if (isPaused.value) {
-      const data = await postJson(`${API_BASE_URL}/api/v1/interviews/${interviewId.value}/resume/`)
+      const data = await postJson(`${API_BASE_URL}/v1/interviews/${interviewId.value}/resume/`)
       isPaused.value = false
       interview.value = { ...interview.value, ...data.data, status: 'in_progress' }
       addLog('面试已恢复。')
@@ -812,7 +812,7 @@ const pauseInterview = async () => {
     }
 
     isPaused.value = true
-    const data = await postJson(`${API_BASE_URL}/api/v1/interviews/${interviewId.value}/pause/`)
+    const data = await postJson(`${API_BASE_URL}/v1/interviews/${interviewId.value}/pause/`)
     interview.value = { ...interview.value, ...data.data, status: 'paused' }
     addLog('面试已暂停。')
   } catch (err) {
@@ -830,7 +830,7 @@ const startInterviewManually = async () => {
   cancelSilenceFinalize()
 
   try {
-    const startData = await postJson(`${API_BASE_URL}/api/v1/interviews/${interviewId.value}/start/`)
+    const startData = await postJson(`${API_BASE_URL}/v1/interviews/${interviewId.value}/start/`)
     interview.value = { ...interview.value, ...startData.data, status: 'in_progress' }
 
     const interviewName = String(interview.value?.name || '本场')
@@ -856,7 +856,7 @@ const endInterview = async () => {
   }
 
   try {
-    const data = await postJson(`${API_BASE_URL}/api/v1/interviews/${interviewId.value}/end/`)
+    const data = await postJson(`${API_BASE_URL}/v1/interviews/${interviewId.value}/end/`)
     interview.value = { ...interview.value, ...data.data, status: 'completed' }
     showInterviewEndedNotice.value = true
     showEndDecision.value = true
@@ -888,7 +888,7 @@ const waitForEvaluationResult = async () => {
   const fetchEvaluationSummary = async () => {
     const token = localStorage.getItem('access_token')
     const response = await fetch(
-      `${API_BASE_URL}/api/v1/interviews/${interviewId.value}/evaluation-summary/`,
+      `${API_BASE_URL}/v1/interviews/${interviewId.value}/evaluation-summary/`,
       {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -935,7 +935,7 @@ const submitFallbackText = async () => {
 
   try {
     await postJson(
-      `${API_BASE_URL}/api/v1/interviews/${interviewId.value}/rounds/${currentRoundId.value}/answer/`,
+      `${API_BASE_URL}/v1/interviews/${interviewId.value}/rounds/${currentRoundId.value}/answer/`,
       { user_answer: text },
     )
     addLog(`文本降级提交成功: ${text.slice(0, 30)}${text.length > 30 ? '...' : ''}`)
@@ -967,8 +967,8 @@ const loadInterviewInfo = async () => {
 
   try {
     const [detailResp, roundsResp] = await Promise.all([
-      fetch(`${API_BASE_URL}/api/v1/interviews/${interviewId.value}/`, { headers: getAuthHeaders() }),
-      fetch(`${API_BASE_URL}/api/v1/interviews/${interviewId.value}/rounds/`, { headers: getAuthHeaders() }),
+      fetch(`${API_BASE_URL}/v1/interviews/${interviewId.value}/`, { headers: getAuthHeaders() }),
+      fetch(`${API_BASE_URL}/v1/interviews/${interviewId.value}/rounds/`, { headers: getAuthHeaders() }),
     ])
 
     if (detailResp.status === 401 || roundsResp.status === 401) {

@@ -46,7 +46,7 @@ export function useInterviewSession() {
 
     const fetchEvaluationSummary = async () => {
       const response = await fetch(
-        `${API_BASE_URL}/api/v1/interviews/${interviewId}/evaluation-summary/`,
+        `${API_BASE_URL}/v1/interviews/${interviewId}/evaluation-summary/`,
         { headers: getAuthHeaders() }
       )
       const data = await response.json().catch(() => ({}))
@@ -100,12 +100,12 @@ export function useInterviewSession() {
 
   const fetchInterviewDetail = async () => {
     const interviewId = route.params.id as string
-    
+
     try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/interviews/${interviewId}/`, {
+      const response = await fetch(`${API_BASE_URL}/v1/interviews/${interviewId}/`, {
         headers: getAuthHeaders()
       })
-      
+
       if (response.ok) {
         const data = await response.json()
         if (data.code === 200) {
@@ -131,12 +131,12 @@ export function useInterviewSession() {
 
   const fetchRounds = async () => {
     const interviewId = route.params.id as string
-    
+
     try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/interviews/${interviewId}/rounds/`, {
+      const response = await fetch(`${API_BASE_URL}/v1/interviews/${interviewId}/rounds/`, {
         headers: getAuthHeaders()
       })
-      
+
       if (response.ok) {
         const data = await response.json()
         if (data.code === 200) {
@@ -146,19 +146,19 @@ export function useInterviewSession() {
     } catch (err) {
       console.error('获取轮次列表失败:', err)
     }
-    
+
     return []
   }
 
   const startInterview = async () => {
     const interviewId = route.params.id as string
-    
+
     try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/interviews/${interviewId}/start/`, {
+      const response = await fetch(`${API_BASE_URL}/v1/interviews/${interviewId}/start/`, {
         method: 'POST',
         headers: getAuthHeaders()
       })
-      
+
       if (response.ok) {
         const data = await response.json()
         if (data.code === 200) {
@@ -184,13 +184,13 @@ export function useInterviewSession() {
 
   const pauseInterview = async () => {
     const interviewId = route.params.id as string
-    
+
     try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/interviews/${interviewId}/pause/`, {
+      const response = await fetch(`${API_BASE_URL}/v1/interviews/${interviewId}/pause/`, {
         method: 'POST',
         headers: getAuthHeaders()
       })
-      
+
       if (response.ok) {
         const data = await response.json()
         if (data.code === 200) {
@@ -216,13 +216,13 @@ export function useInterviewSession() {
 
   const resumeInterview = async () => {
     const interviewId = route.params.id as string
-    
+
     try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/interviews/${interviewId}/resume/`, {
+      const response = await fetch(`${API_BASE_URL}/v1/interviews/${interviewId}/resume/`, {
         method: 'POST',
         headers: getAuthHeaders()
       })
-      
+
       if (response.ok) {
         const data = await response.json()
         if (data.code === 200) {
@@ -254,11 +254,11 @@ export function useInterviewSession() {
     isWaitingForQuestion.value = true
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/interviews/${interviewId}/end/`, {
+      const response = await fetch(`${API_BASE_URL}/v1/interviews/${interviewId}/end/`, {
         method: 'POST',
         headers: getAuthHeaders()
       })
-      
+
       if (response.ok) {
         const data = await response.json()
         if (data.code === 200) {
@@ -291,22 +291,22 @@ export function useInterviewSession() {
 
   const getNextQuestion = async () => {
     if (isPaused.value || isInterviewEnded.value || isWaitingForQuestion.value) return
-    
+
     isWaitingForQuestion.value = true
-    
+
     try {
       const rounds = await fetchRounds()
-      
+
       if (!rounds || rounds.length === 0) {
         // 没有轮次，生成第一个问题
         await generateNextQuestion()
         return
       }
-      
+
       const unansweredRound = rounds.find(
         (r: any) => !isEffectiveUserAnswer(r.user_answer)
       )
-      
+
       if (unansweredRound) {
         currentRound.value = unansweredRound
         addQuestionMessage(unansweredRound)
@@ -318,7 +318,7 @@ export function useInterviewSession() {
       // 当前已产生的轮次均已有效作答：由后端 next-question 判断是否还有下一题或结束面试。
       // 此时展示「结束中」态，避免误导为“仍在获取下一题”。
       await generateNextQuestion(true)
-      
+
     } catch (err) {
       console.error('获取下一题失败:', err)
       addSystemMessage('获取题目失败，请稍后重试')
@@ -334,15 +334,15 @@ export function useInterviewSession() {
     } else {
       addSystemMessage('⏳ 正在生成问题，请稍候...')
     }
-    
+
     try {
       const interviewId = route.params.id as string
-      const response = await fetch(`${API_BASE_URL}/api/v1/interviews/${interviewId}/next-question/`, {
+      const response = await fetch(`${API_BASE_URL}/v1/interviews/${interviewId}/next-question/`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({})
       })
-      
+
       if (response.ok) {
         const data = await response.json()
         if (data.code === 201) {
@@ -403,21 +403,21 @@ export function useInterviewSession() {
 
   const submitAnswer = async (answer: string) => {
     if (!answer.trim() || isSubmitting.value || !currentRound.value || isPaused.value) return false
-    
+
     addUserMessage(answer)
-    
+
     isSubmitting.value = true
-    
+
     try {
       const response = await fetch(
-        `${API_BASE_URL}/api/v1/interviews/${interview.value.id}/rounds/${currentRound.value.round_id}/answer/`,
+        `${API_BASE_URL}/v1/interviews/${interview.value.id}/rounds/${currentRound.value.round_id}/answer/`,
         {
           method: 'POST',
           headers: getAuthHeaders(),
           body: JSON.stringify({ user_answer: answer })
         }
       )
-      
+
       if (response.ok) {
         const data = await response.json()
         if (data.code === 200) {
@@ -455,7 +455,7 @@ export function useInterviewSession() {
   const startCountdown = () => {
     showCountdown.value = true
     countdownSeconds.value = 5
-    
+
     countdownInterval.value = window.setInterval(() => {
       countdownSeconds.value--
       if (countdownSeconds.value <= 0) {
@@ -476,7 +476,7 @@ export function useInterviewSession() {
 
   const startPolling = () => {
     if (pollingInterval.value) return
-    
+
     pollingInterval.value = window.setInterval(async () => {
       await getNextQuestion()
     }, 3000)
@@ -503,10 +503,10 @@ export function useInterviewSession() {
       'project': '项目经历题',
       'scenario': '场景题'
     }
-    
+
     const categoryName = categoryNames[round.category] || round.category_name || '面试题'
     const questionLabel = round.followup_depth === 0 ? '主问题' : `第${round.followup_depth}次追问`
-    
+
     messages.value.push({
       type: 'ai',
       content: `【${categoryName} - ${questionLabel}】\n\n${round.question_content}`,
@@ -544,7 +544,7 @@ export function useInterviewSession() {
     for (const round of answeredRounds) {
       // 添加问题消息
       addQuestionMessage(round)
-      
+
       // 添加用户回答消息
       if (round.user_answer && round.user_answer !== '') {
         const displayContent = round.user_answer === VOICE_PLACEHOLDER_ANSWER
@@ -591,7 +591,7 @@ export function useInterviewSession() {
     isPaused,
     countdownSeconds,
     showCountdown,
-    
+
     fetchInterviewDetail,
     startInterview,
     pauseInterview,

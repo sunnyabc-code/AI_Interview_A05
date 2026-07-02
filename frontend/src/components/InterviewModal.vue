@@ -39,7 +39,7 @@ const getAuthHeaders = () => {
 
 const fetchPositions = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/positions/`, {
+    const response = await fetch(`${API_BASE_URL}/positions/`, {
       headers: getAuthHeaders()
     })
     
@@ -54,7 +54,7 @@ const fetchPositions = async () => {
 
 const fetchDifficultyConfigs = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/evaluations/difficulty-configs/`, {
+    const response = await fetch(`${API_BASE_URL}/evaluations/difficulty-configs/`, {
       headers: getAuthHeaders()
     })
     
@@ -69,7 +69,7 @@ const fetchDifficultyConfigs = async () => {
 
 const fetchUserProjects = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/user-projects/`, {
+    const response = await fetch(`${API_BASE_URL}/user-projects/`, {
       headers: getAuthHeaders()
     })
     if (response.ok) {
@@ -144,7 +144,7 @@ const handleSubmit = async () => {
   success.value = ''
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/v1/interviews/`, {
+    const response = await fetch(`${API_BASE_URL}/v1/interviews/`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(form.value)

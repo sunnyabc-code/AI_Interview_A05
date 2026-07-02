@@ -54,7 +54,7 @@ const handleLogin = async () => {
   error.value = ''
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/users/login/`, {
+    const response = await fetch(`${API_BASE_URL}/users/login/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -116,7 +116,7 @@ const handleRegister = async () => {
   error.value = ''
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/users/register/`, {
+    const response = await fetch(`${API_BASE_URL}/users/register/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -159,7 +159,7 @@ const sendCode = async (type: string, isRegister: boolean = false) => {
   error.value = ''
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/users/send-code/`, {
+    const response = await fetch(`${API_BASE_URL}/users/send-code/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -197,7 +197,7 @@ const handleResetPassword = async () => {
   error.value = ''
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/users/reset-password/`, {
+    const response = await fetch(`${API_BASE_URL}/users/reset-password/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'

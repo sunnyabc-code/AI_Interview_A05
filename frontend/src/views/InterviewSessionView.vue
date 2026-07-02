@@ -157,7 +157,7 @@ const uploadRecordedAudio = async () => {
     formData.append('duration_seconds', String(recordedDurationSeconds.value))
 
     const response = await fetch(
-      `${API_BASE_URL}/api/v1/interviews/${interview.value.id}/rounds/${currentRound.value.round_id}/audio/`,
+      `${API_BASE_URL}/v1/interviews/${interview.value.id}/rounds/${currentRound.value.round_id}/audio/`,
       {
         method: 'POST',
         headers: {

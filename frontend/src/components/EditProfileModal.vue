@@ -36,7 +36,7 @@ const getAuthHeaders = () => {
 
 const fetchPositions = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/positions/`, {
+    const response = await fetch(`${API_BASE_URL}/positions/`, {
       headers: getAuthHeaders()
     })
     
@@ -76,7 +76,7 @@ const handleSave = async () => {
   success.value = ''
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/users/profile/update/`, {
+    const response = await fetch(`${API_BASE_URL}/users/profile/update/`, {
       method: 'PUT',
       headers: getAuthHeaders(),
       body: JSON.stringify(editForm.value)

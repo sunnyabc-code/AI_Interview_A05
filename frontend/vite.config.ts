@@ -19,9 +19,8 @@ export default defineConfig({
     proxy: {
       // 当你本地访问 /api 时，Vite 会自动帮你转发到后端的 8000
       '/api': {
-        target: 'http://127.0.0.1:8000', 
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, '') // 如果后端接口本身没有 /api 前缀，就加上这一行
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true
       }
     }
   }

@@ -16,7 +16,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  apiEndpoint: '/api/recommendations/expression-ability-overview/',
+  apiEndpoint: '/recommendations/expression-ability-overview/',
   records: () => [],
   title: '表达能力总览',
   autoFetch: true,
