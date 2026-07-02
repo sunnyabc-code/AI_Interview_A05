@@ -2,6 +2,10 @@ from django.db import migrations, models
 
 
 def ensure_updated_at_column(apps, schema_editor):
+    # 该迁移仅用于 MySQL；SQLite/其他引擎由 SeparatedDatabaseAndState 的 state_operations 处理。
+    if schema_editor.connection.vendor not in ("mysql", "mariadb"):
+        return
+
     table_name = "voice_analyses"
     column_name = "updated_at"
 
@@ -14,7 +18,6 @@ def ensure_updated_at_column(apps, schema_editor):
         }
 
         if column_name not in existing_columns:
-            # MySQL: add non-null updated_at with auto update behavior.
             cursor.execute(
                 "ALTER TABLE voice_analyses ADD COLUMN updated_at datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)"
             )

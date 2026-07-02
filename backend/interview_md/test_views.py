@@ -461,3 +461,59 @@ class TestNormalizeDifficulty:
     def test_已知值直接通过(self):
         from interview_md.views import normalize_difficulty
         assert normalize_difficulty('medium') == 'medium'
+
+
+# ============================================================
+# 统一响应封装（4.7.8 — 6 项）
+# ============================================================
+
+class TestResponseFormat:
+    """ok() / err() 统一响应结构验证"""
+
+    def test_ok成功响应code为1(self):
+        from interview_md.views import ok
+        resp = ok({'sessionId': '123'})
+        assert resp.data['code'] == 1 and resp.data['msg'] == 'ok'
+        assert resp.data['data'] == {'sessionId': '123'}
+
+    def test_ok支持自定义msg和None数据(self):
+        from interview_md.views import ok
+        r1 = ok({'token': 'abc'}, msg='登录成功')
+        assert r1.data['msg'] == '登录成功'
+        r2 = ok(None)
+        assert r2.data['data'] is None
+
+    def test_err业务错误与字段校验(self):
+        from interview_md.views import err
+        r1 = err('用户不存在', code=401)
+        assert r1.data['code'] == 401 and r1.data['msg'] == '用户不存在' and r1.data['data'] is None
+        r2 = err('密码长度不足', code=400)
+        assert r2.data['code'] == 400
+
+    def test_err默认错误码为0(self):
+        from interview_md.views import err
+        resp = err('参数错误')
+        assert resp.data['code'] == 0
+
+    def test_成功与错误响应结构一致(self):
+        from interview_md.views import ok, err
+        for resp in [ok({'id': 1}), err('未找到')]:
+            assert 'code' in resp.data and 'msg' in resp.data and 'data' in resp.data
+
+    def test_空列表与分页数据正确返回(self):
+        from interview_md.views import ok
+        r1 = ok([])
+        assert r1.data['code'] == 1 and r1.data['data'] == []
+        r2 = ok({'items': [1, 2], 'total': 42})
+        assert r2.data['data'] == {'items': [1, 2], 'total': 42}
+
+    def test_ok响应HTTP状态码为200(self):
+        from interview_md.views import ok
+        resp = ok({'id': 1})
+        assert resp.status_code == 200
+
+    def test_data为嵌套对象时正确传递(self):
+        from interview_md.views import ok
+        nested = {'user': {'name': '张三', 'roles': ['admin']}}
+        resp = ok(nested)
+        assert resp.data['data']['user']['name'] == '张三'

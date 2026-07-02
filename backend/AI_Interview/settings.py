@@ -31,10 +31,10 @@ except ImportError:
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-=*0cf_-*9zv1ogzn^l=@je7xc=aznyb(#^#41%*-xo$3ow-+4v"
+SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-=*0cf_-*9zv1ogzn^l=@je7xc=aznyb(#^#41%*-xo$3ow-+4v")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DEBUG", "true").lower() in ("1", "true", "yes", "on")
 
 ALLOWED_HOSTS = ['*']
 
@@ -61,6 +61,7 @@ INSTALLED_APPS = [
     "pathway",
     "learning",
     "user_projects",
+    "interview_md",
 ]
 
 MIDDLEWARE = [
@@ -99,12 +100,17 @@ WSGI_APPLICATION = "AI_Interview.wsgi.application"
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.mysql",
-        "NAME": "ai_interview_database",
-        "USER": "course_user",
-        "PASSWORD": "password123",
-        "HOST": "122.9.42.110",
-        "PORT": "3306",
+        "ENGINE": os.getenv("DB_ENGINE", "django.db.backends.mysql"),
+        "NAME": os.getenv("DB_NAME", "ai_interview_database"),
+        "USER": os.getenv("DB_USER", "course_user"),
+        "PASSWORD": os.getenv("DB_PASSWORD", "password123"),
+        "HOST": os.getenv("DB_HOST", "122.9.42.110"),
+        "PORT": os.getenv("DB_PORT", "3306"),
+        "OPTIONS": (
+            {"charset": "utf8mb4"}
+            if os.getenv("DB_ENGINE", "").startswith("mysql")
+            else {}
+        ),
     }
 }
 
@@ -202,36 +208,8 @@ REST_FRAMEWORK = {
 }
 
 # CORS配置
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-]
-
+CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
-
-CORS_ALLOW_METHODS = [
-    "DELETE",
-    "GET",
-    "OPTIONS",
-    "PATCH",
-    "POST",
-    "PUT",
-]
-
-CORS_ALLOW_HEADERS = [
-    "accept",
-    "accept-encoding",
-    "authorization",
-    "content-type",
-    "dnt",
-    "origin",
-    "user-agent",
-    "x-csrftoken",
-    "x-requested-with",
-    "access-control-allow-origin",
-    "access-control-allow-headers",
-    "access-control-allow-methods",
-]
 
 # LLM 配置（OpenAI 兼容接口）
 LLM_BASE_URL = os.getenv("LLM_BASE_URL", "https://api.siliconflow.cn/v1")
